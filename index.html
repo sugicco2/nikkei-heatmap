@@ -186,21 +186,27 @@
               pct: { fontSize: 11, color: '#f3f4f6', lineHeight: 14 }
             }
           },
-          upperLabel: {
-            show: true,
-            height: 20,
-            color: '#e5e7eb',
-            backgroundColor: '#22262f',
-            fontSize: 11,
-            fontWeight: 'bold',
-            padding: [0, 6]
-          },
           levels: [
             {
-              itemStyle: { borderColor: '#16181d', borderWidth: 3, gapWidth: 2 }
+              itemStyle: { borderColor: '#16181d', borderWidth: 2, gapWidth: 2 }
             },
             {
-              itemStyle: { borderColor: '#2c313c', borderWidth: 1, gapWidth: 1 }
+              itemStyle: { borderColor: '#16181d', borderWidth: 2, gapWidth: 1 },
+              upperLabel: {
+                show: true,
+                height: 17,
+                color: '#9ca3af',
+                backgroundColor: '#1b1e26',
+                fontSize: 10,
+                fontWeight: 'bold',
+                padding: [0, 4],
+                overflow: 'truncate',
+                formatter: '{b}'
+              }
+            },
+            {
+              itemStyle: { borderColor: '#16181d', borderWidth: 1, gapWidth: 0 },
+              upperLabel: { show: false }
             }
           ],
           data: treeData
