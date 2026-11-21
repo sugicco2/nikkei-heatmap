@@ -19,9 +19,12 @@ df_tp["est_shares"] = pd.to_numeric(df_tp["est_shares"], errors="coerce")
 df_tp = df_tp.dropna(subset=["float_ratio", "est_shares"]).drop_duplicates(subset=["code"])
 df_tp["code"] = df_tp["code"].astype(str).str.strip()
 
-# 重複を除いた全銘柄コードを一括ダウンロード
-all_codes = sorted(list(set(df_nk["code"].tolist() + df_tp["code"].tolist())))
-print(f"合計 {len(all_codes)} 銘柄の株価データを取得中...")
+# 指数用ティッカーも個別銘柄と一緒に一括ダウンロード
+index_codes = ["^N225", "^TOPX", "1306.T"]
+stock_codes = sorted(list(set(df_nk["code"].tolist() + df_tp["code"].tolist())))
+all_codes = sorted(list(set(stock_codes + index_codes)))
+
+print(f"合計 {len(all_codes)} 銘柄の株価・指数データを取得中...")
 data = yf.download(all_codes, period="2y", group_by="ticker", auto_adjust=True, threads=True)
 
 # TOPIX用の最新時価総額を並列取得
@@ -43,6 +46,22 @@ with ThreadPoolExecutor(max_workers=10) as executor:
 jst = timezone(timedelta(hours=9))
 now_jst = datetime.now(jst)
 current_year = now_jst.year
+
+def extract_closes(download_data, code):
+    try:
+        if isinstance(download_data.columns, pd.MultiIndex):
+            if code not in download_data.columns.get_level_values(0):
+                return None
+            s = download_data[code]["Close"].dropna()
+        else:
+            s = download_data["Close"].dropna()
+        if isinstance(s, pd.DataFrame):
+            s = s.iloc[:, 0].dropna()
+        if len(s) < 2:
+            return None
+        return s
+    except Exception:
+        return None
 
 def calc_period_returns(closes):
     latest = float(closes.iloc[-1])
@@ -81,79 +100,26 @@ def calc_period_returns(closes):
         "1Y": y1
     }
 
-# 2. 日経平均指数 & TOPIX指数の数値・騰落率を取得
-def fetch_indices_summary():
-    summary = {}
-
-    # 日経平均株価指数 (^N225)
-    try:
-        nk_hist = yf.Ticker("^N225").history(period="2y", auto_adjust=True)["Close"].dropna()
-        if len(nk_hist) >= 2:
-            res = calc_period_returns(nk_hist)
-            summary["nikkei225"] = {
-                "value": round(res["latest"], 2),
-                "1D": res["1D"], "1W": res["1W"], "1M": res["1M"], "YTD": res["YTD"], "1Y": res["1Y"]
-            }
-    except Exception as e:
-        print(f"日経平均指数取得スキップ: {e}")
-
-    # TOPIX指数（現在値はYahoo!ファイナンス日本版、期間騰落率はTOPIX連動ETF 1306.Tから算出）
-    try:
-        tp_etf = yf.Ticker("1306.T").history(period="2y", auto_adjust=True)["Close"].dropna()
-        res = calc_period_returns(tp_etf) if len(tp_etf) >= 2 else {"latest": 0, "1D": 0, "1W": 0, "1M": 0, "YTD": 0, "1Y": 0}
-        tp_val = round(res["latest"] * 10, 2)  # フォールバック概算値
-
-        try:
-            req = urllib.request.Request(
-                "https://finance.yahoo.co.jp/quote/998405.T",
-                headers={"User-Agent": "Mozilla/5.0"}
-            )
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                html = resp.read().decode("utf-8", errors="ignore")
-                m = re.search(r'"price":"([0-9,]+\.[0-9]+)"', html)
-                if m:
-                    tp_val = float(m.group(1).replace(",", ""))
-        except Exception:
-            pass
-
-        if tp_val > 0:
-            summary["topix"] = {
-                "value": round(tp_val, 2),
-                "1D": res["1D"], "1W": res["1W"], "1M": res["1M"], "YTD": res["YTD"], "1Y": res["1Y"]
-            }
-    except Exception as e:
-        print(f"TOPIX指数取得スキップ: {e}")
-
-    return summary
-
-index_summary = fetch_indices_summary()
-
-# 3. 各銘柄の現在値と騰落率を計算
+# 2. 各銘柄の現在値と騰落率を計算
 metrics = {}
-for code in all_codes:
-    try:
-        closes = data[code]["Close"].dropna()
-        if isinstance(closes, pd.DataFrame):
-            closes = closes.iloc[:, 0].dropna()
-        if len(closes) < 2:
-            continue
+for code in stock_codes:
+    closes = extract_closes(data, code)
+    if closes is None:
+        continue
+    latest = float(closes.iloc[-1])
+    if not math.isfinite(latest) or latest <= 0:
+        continue
 
-        latest = float(closes.iloc[-1])
-        if not math.isfinite(latest) or latest <= 0:
-            continue
-
-        res = calc_period_returns(closes)
-        metrics[code] = {
-            "price": round(latest, 1),
-            "raw_price": latest,
-            "1D": res["1D"],
-            "1W": res["1W"],
-            "1M": res["1M"],
-            "YTD": res["YTD"],
-            "1Y": res["1Y"]
-        }
-    except Exception as e:
-        print(f"スキップ ({code}): {e}")
+    res = calc_period_returns(closes)
+    metrics[code] = {
+        "price": round(latest, 1),
+        "raw_price": latest,
+        "1D": res["1D"],
+        "1W": res["1W"],
+        "1M": res["1M"],
+        "YTD": res["YTD"],
+        "1Y": res["1Y"]
+    }
 
 def build_index_data(df, mode):
     items = []
@@ -188,6 +154,16 @@ def build_index_data(df, mode):
             "m": m
         })
 
+    # 指数データが外部取得できなかった場合のフォールバック用加重平均騰落率
+    weighted_ret = {p: 0.0 for p in ["1D", "1W", "1M", "YTD", "1Y"]}
+    if total_val > 0:
+        for it in items:
+            w = it["val"] / total_val
+            for p in weighted_ret:
+                weighted_ret[p] += it["m"][p] * w
+        for p in weighted_ret:
+            weighted_ret[p] = round(weighted_ret[p], 2)
+
     sectors = {}
     for it in items:
         sec = it["sector"]
@@ -210,14 +186,62 @@ def build_index_data(df, mode):
             "1Y": m["1Y"]
         })
 
-    return [{"name": sec, "children": ch} for sec, ch in sectors.items()]
+    return [{"name": sec, "children": ch} for sec, ch in sectors.items()], weighted_ret
+
+nk_sectors, nk_fallback_ret = build_index_data(df_nk, "nikkei")
+tp_sectors, tp_fallback_ret = build_index_data(df_tp, "topix")
+
+# 3. 日経平均指数 & TOPIX指数のサマリーを作成
+index_summary = {}
+
+# 日経平均株価指数 (^N225)
+nk_closes = extract_closes(data, "^N225")
+if nk_closes is not None:
+    res = calc_period_returns(nk_closes)
+    index_summary["nikkei225"] = {
+        "value": round(res["latest"], 2),
+        "1D": res["1D"], "1W": res["1W"], "1M": res["1M"], "YTD": res["YTD"], "1Y": res["1Y"]
+    }
+else:
+    index_summary["nikkei225"] = {"value": 0, **nk_fallback_ret}
+
+# TOPIX指数 (^TOPX または 1306.T + Yahoo!ファイナンス)
+tp_closes = extract_closes(data, "^TOPX")
+if tp_closes is not None:
+    res = calc_period_returns(tp_closes)
+    index_summary["topix"] = {
+        "value": round(res["latest"], 2),
+        "1D": res["1D"], "1W": res["1W"], "1M": res["1M"], "YTD": res["YTD"], "1Y": res["1Y"]
+    }
+else:
+    etf_closes = extract_closes(data, "1306.T")
+    res = calc_period_returns(etf_closes) if etf_closes is not None else {"latest": 0, **tp_fallback_ret}
+    tp_val = round(res["latest"] * 0.955, 2) if res["latest"] > 0 else 0
+
+    try:
+        req = urllib.request.Request(
+            "https://finance.yahoo.co.jp/quote/998405.T",
+            headers={"User-Agent": "Mozilla/5.0"}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+            m = re.search(r'"price":"([0-9,]+\.[0-9]+)"', html)
+            if m:
+                tp_val = float(m.group(1).replace(",", ""))
+    except Exception:
+        pass
+
+    index_summary["topix"] = {
+        "value": round(tp_val, 2),
+        "1D": res["1D"], "1W": res["1W"], "1M": res["1M"], "YTD": res["YTD"], "1Y": res["1Y"]
+    }
 
 output = {
     "updated_at": now_jst.strftime("%m/%d %H:%M"),
     "index_summary": index_summary,
     "indices": {
-        "nikkei225": build_index_data(df_nk, "nikkei"),
-        "topix": build_index_data(df_tp, "topix")
+        "nikkei225": nk_sectors,
+        "topix": tp_sectors
     }
 }
 
