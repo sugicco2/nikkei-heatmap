@@ -28,7 +28,12 @@
       flex-wrap: wrap;
       gap: 6px;
     }
-    .left-area { display: flex; align-items: center; gap: 8px; }
+    .left-area {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
     .index-switch {
       display: flex;
       background: #13151a;
@@ -40,16 +45,35 @@
       background: transparent;
       border: none;
       color: #8e96a4;
-      padding: 4px 9px;
+      padding: 4px 8px;
       font-size: 12px;
       font-weight: 700;
       border-radius: 5px;
+      cursor: pointer;
     }
     .index-switch button.active {
       background: #e5e7eb;
       color: #111827;
     }
-    #updated { font-size: 11px; color: #8e96a4; }
+    .index-quote {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+      font-variant-numeric: tabular-nums;
+    }
+    #index-val {
+      font-size: 15px;
+      font-weight: 800;
+      color: #f9fafb;
+    }
+    #index-chg {
+      font-size: 12px;
+      font-weight: 700;
+    }
+    #updated {
+      font-size: 10px;
+      color: #6b7280;
+    }
     .controls { display: flex; gap: 3px; }
     .controls button {
       background: #2b303b;
@@ -93,6 +117,10 @@
       <div class="index-switch" id="index-buttons">
         <button data-index="nikkei225" class="active">日経225</button>
         <button data-index="topix">TOPIX 100</button>
+      </div>
+      <div class="index-quote">
+        <span id="index-val">--</span>
+        <span id="index-chg"></span>
       </div>
       <span id="updated">読込中...</span>
     </div>
@@ -145,8 +173,26 @@
       }).join('');
     }
 
+    function updateIndexHeader() {
+      const valEl = document.getElementById('index-val');
+      const chgEl = document.getElementById('index-chg');
+      if (!rawData || !rawData.index_summary || !rawData.index_summary[currentIndex]) {
+        valEl.textContent = '';
+        chgEl.textContent = '';
+        return;
+      }
+      const info = rawData.index_summary[currentIndex];
+      const pct = Number(info[currentPeriod] || 0);
+      const sign = pct > 0 ? '+' : '';
+      valEl.textContent = Number(info.value).toLocaleString('ja-JP', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      chgEl.textContent = `${sign}${pct.toFixed(2)}%`;
+      chgEl.style.color = pct > 0 ? '#4ade80' : (pct < 0 ? '#f87171' : '#9ca3af');
+    }
+
     function renderChart() {
       if (!rawData) return;
+      updateIndexHeader();
+
       const sectorList = rawData.indices ? rawData.indices[currentIndex] : rawData.sectors;
       if (!Array.isArray(sectorList)) return;
 
@@ -255,7 +301,6 @@
         document.getElementById('updated').textContent = 'データ準備中';
       });
 
-    // 日経225 / TOPIX 切り替え
     document.getElementById('index-buttons').addEventListener('click', (e) => {
       if (e.target.tagName !== 'BUTTON') return;
       document.querySelectorAll('#index-buttons button').forEach(b => b.classList.remove('active'));
@@ -264,7 +309,6 @@
       renderChart();
     });
 
-    // 期間切り替え
     document.getElementById('period-buttons').addEventListener('click', (e) => {
       if (e.target.tagName !== 'BUTTON') return;
       document.querySelectorAll('#period-buttons button').forEach(b => b.classList.remove('active'));
