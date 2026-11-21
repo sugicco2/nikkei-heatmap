@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>日経225 ヒートマップ</title>
+  <title>日本株 ヒートマップ</title>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -22,28 +22,47 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 12px;
+      padding: 6px 10px;
       background-color: #1e2128;
       border-bottom: 1px solid #2e323c;
       flex-wrap: wrap;
       gap: 6px;
     }
-    .title-area { display: flex; align-items: baseline; gap: 8px; }
-    h1 { font-size: 16px; font-weight: 700; letter-spacing: 0.5px; }
+    .left-area { display: flex; align-items: center; gap: 8px; }
+    .index-switch {
+      display: flex;
+      background: #13151a;
+      padding: 2px;
+      border-radius: 7px;
+      border: 1px solid #323744;
+    }
+    .index-switch button {
+      background: transparent;
+      border: none;
+      color: #8e96a4;
+      padding: 4px 9px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 5px;
+    }
+    .index-switch button.active {
+      background: #e5e7eb;
+      color: #111827;
+    }
     #updated { font-size: 11px; color: #8e96a4; }
-    .controls { display: flex; gap: 4px; }
-    button {
+    .controls { display: flex; gap: 3px; }
+    .controls button {
       background: #2b303b;
       color: #c5cbd6;
       border: 1px solid #3c4250;
-      padding: 5px 10px;
+      padding: 4px 8px;
       border-radius: 6px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       cursor: pointer;
       transition: 0.15s;
     }
-    button.active {
+    .controls button.active {
       background: #3b82f6;
       color: #ffffff;
       border-color: #3b82f6;
@@ -70,8 +89,11 @@
 </head>
 <body>
   <header>
-    <div class="title-area">
-      <h1>日経225 Map</h1>
+    <div class="left-area">
+      <div class="index-switch" id="index-buttons">
+        <button data-index="nikkei225" class="active">日経225</button>
+        <button data-index="topix">TOPIX 100</button>
+      </div>
       <span id="updated">読込中...</span>
     </div>
     <div class="controls" id="period-buttons">
@@ -91,12 +113,11 @@
     const chartDom = document.getElementById('chart');
     const myChart = echarts.init(chartDom);
     let rawData = null;
+    let currentIndex = 'nikkei225';
     let currentPeriod = '1D';
 
-    // 期間ごとの色の濃淡の最大基準値（%）
     const scaleMaxMap = { '1D': 3, '1W': 6, '1M': 10, 'YTD': 25, '1Y': 30 };
 
-    // Finviz風の赤〜グレー〜緑の色計算
     function getFinvizColor(val, maxRange) {
       if (!val || isNaN(val)) return '#2d3139';
       const ratio = Math.min(Math.abs(val) / maxRange, 1);
@@ -125,11 +146,14 @@
     }
 
     function renderChart() {
-      if (!rawData || !Array.isArray(rawData.sectors)) return;
+      if (!rawData) return;
+      const sectorList = rawData.indices ? rawData.indices[currentIndex] : rawData.sectors;
+      if (!Array.isArray(sectorList)) return;
+
       const maxRange = scaleMaxMap[currentPeriod] || 3;
       updateLegend(maxRange);
 
-      const treeData = rawData.sectors.map(sec => ({
+      const treeData = sectorList.map(sec => ({
         name: sec.name,
         children: sec.children.map(item => {
           const pct = Number(item[currentPeriod] || 0);
@@ -145,6 +169,8 @@
         })
       }));
 
+      const indexLabel = currentIndex === 'nikkei225' ? '日経225内比率' : 'TOPIX100内比率';
+
       myChart.setOption({
         tooltip: {
           backgroundColor: 'rgba(22, 24, 29, 0.95)',
@@ -159,7 +185,7 @@
             return `
               <div style="font-weight:bold;font-size:14px;">${d.name} (${code})</div>
               <div>現在値: <b>${price.toLocaleString()}円</b></div>
-              <div>構成比: <b>${weight.toFixed(2)}%</b></div>
+              <div>${indexLabel}: <b>${weight.toFixed(2)}%</b></div>
               <div>騰落率 (${currentPeriod}): <b style="color:${color};font-size:15px;">${sign}${pct.toFixed(2)}%</b></div>
             `;
           }
@@ -214,7 +240,6 @@
       });
     }
 
-    // データ読み込み
     fetch('data.json?t=' + Date.now())
       .then(res => {
         if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -222,15 +247,24 @@
       })
       .then(data => {
         rawData = data;
-        document.getElementById('updated').textContent = `更新: ${data.updated_at}`;
+        document.getElementById('updated').textContent = `${data.updated_at}`;
         renderChart();
       })
       .catch(err => {
         console.error(err);
-        document.getElementById('updated').textContent = 'データ準備中（Actionsを実行してください）';
+        document.getElementById('updated').textContent = 'データ準備中';
       });
 
-    // 期間ボタン切り替え
+    // 日経225 / TOPIX 切り替え
+    document.getElementById('index-buttons').addEventListener('click', (e) => {
+      if (e.target.tagName !== 'BUTTON') return;
+      document.querySelectorAll('#index-buttons button').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      currentIndex = e.target.dataset.index;
+      renderChart();
+    });
+
+    // 期間切り替え
     document.getElementById('period-buttons').addEventListener('click', (e) => {
       if (e.target.tagName !== 'BUTTON') return;
       document.querySelectorAll('#period-buttons button').forEach(b => b.classList.remove('active'));
