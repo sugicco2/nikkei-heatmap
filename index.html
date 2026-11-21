@@ -98,16 +98,14 @@
 
     // Finviz風の赤〜グレー〜緑の色計算
     function getFinvizColor(val, maxRange) {
-      if (val === 0) return '#2d3139';
+      if (!val || isNaN(val)) return '#2d3139';
       const ratio = Math.min(Math.abs(val) / maxRange, 1);
       if (val > 0) {
-        // 緑のグラデーション (#274636 -> #16a34a -> #22c55e)
         const r = Math.round(42 - ratio * 24);
         const g = Math.round(68 + ratio * 115);
         const b = Math.round(56 + ratio * 24);
         return `rgb(${r},${g},${b})`;
       } else {
-        // 赤のグラデーション (#4c2c30 -> #dc2626 -> #ef4444)
         const r = Math.round(76 + ratio * 164);
         const g = Math.round(44 - ratio * 14);
         const b = Math.round(48 - ratio * 16);
@@ -127,17 +125,17 @@
     }
 
     function renderChart() {
-      if (!rawData) return;
+      if (!rawData || !Array.isArray(rawData.sectors)) return;
       const maxRange = scaleMaxMap[currentPeriod] || 3;
       updateLegend(maxRange);
 
       const treeData = rawData.sectors.map(sec => ({
         name: sec.name,
         children: sec.children.map(item => {
-          const pct = item[currentPeriod];
+          const pct = Number(item[currentPeriod] || 0);
           return {
             name: item.name,
-            value: [item.weight, pct, item.price, item.code],
+            value: [Number(item.weight || 0.1), pct, Number(item.price || 0), item.code],
             itemStyle: {
               color: getFinvizColor(pct, maxRange),
               borderColor: '#16181d',
@@ -154,13 +152,14 @@
           textStyle: { color: '#fff', fontSize: 13 },
           formatter: function (info) {
             const d = info.data;
-            if (!d || !d.value) return info.name;
+            if (!d || !Array.isArray(d.value)) return info.name;
             const [weight, pct, price, code] = d.value;
             const sign = pct > 0 ? '+' : '';
             const color = pct > 0 ? '#4ade80' : (pct < 0 ? '#f87171' : '#ccc');
             return `
               <div style="font-weight:bold;font-size:14px;">${d.name} (${code})</div>
               <div>現在値: <b>${price.toLocaleString()}円</b></div>
+              <div>構成比: <b>${weight.toFixed(2)}%</b></div>
               <div>騰落率 (${currentPeriod}): <b style="color:${color};font-size:15px;">${sign}${pct.toFixed(2)}%</b></div>
             `;
           }
@@ -177,7 +176,7 @@
             position: 'inside',
             formatter: function (params) {
               const d = params.data;
-              if (!d || !d.value) return '';
+              if (!d || !Array.isArray(d.value) || typeof d.value[1] !== 'number') return '';
               const pct = d.value[1];
               const sign = pct > 0 ? '+' : '';
               return `{name|${d.name}}\n{pct|${sign}${pct.toFixed(2)}%}`;
@@ -211,13 +210,17 @@
 
     // データ読み込み
     fetch('data.json?t=' + Date.now())
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
       .then(data => {
         rawData = data;
         document.getElementById('updated').textContent = `更新: ${data.updated_at}`;
         renderChart();
       })
-      .catch(() => {
+      .catch(err => {
+        console.error(err);
         document.getElementById('updated').textContent = 'データ準備中（Actionsを実行してください）';
       });
 
