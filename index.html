@@ -170,22 +170,25 @@
       return { text: out, fs };
     }
 
-    // Stock Map風の完全中央揃え・三点リーダー廃止・面積比例フォント設計
-    function buildDynamicLabel(name, pct, code) {
+    function buildDynamicLabel(name, pct, code, isMobile) {
       const sz = tileSizes[code];
       if (!sz) return { show: false };
 
       const availW = sz.w * scale - 3;
       const availH = sz.h * scale - 2;
-      if (availW < 12 || availH < 8.5) return { show: false };
+      if (availW < 11 || availH < 8) return { show: false };
 
+      // 最大フォントをヘッダーの「日経225」「TOPIX」タブ（11〜12px）基準に統一
+      const maxNameFs = isMobile ? 12 : 14;
+      const maxPctFs = isMobile ? 10 : 11.5;
+      const minNameFs = 5.2;
+      const minPctFs = 4.8;
       const units = textUnits(name);
 
-      // 小セル・横長セルは1行中央表示（企業名を最優先でくっきり表示）
-      if (availH < 21 || availW < 23) {
-        const maxFs = Math.min(14, availH * 0.68);
-        const minFs = 5.4;
-        const fitted = fitText(name, availW, maxFs, minFs);
+      // 小セル・横長セルは1行中央表示（企業名を最優先）
+      if (availH < 20 || availW < 22) {
+        const lineCap = Math.min(maxNameFs, availH * 0.65);
+        const fitted = fitText(name, availW, lineCap, minNameFs);
         return {
           show: true,
           position: 'inside',
@@ -198,15 +201,15 @@
         };
       }
 
-      // 中〜大セルは2行中央表示（銘柄名＋騰落率）
-      const rawMaxN = Math.min(22, availH * 0.34, availW / (Math.min(units, 5.2) + 0.1));
-      const fittedN = fitText(name, availW, Math.max(6.2, rawMaxN), 5.8);
+      // 中〜大セルは2行中央表示（最大でも12〜14pxで上品に統一）
+      const rawMaxN = Math.min(maxNameFs, availH * 0.30, availW / (Math.min(units, 5.2) + 0.1));
+      const fittedN = fitText(name, availW, Math.max(minNameFs, rawMaxN), minNameFs);
       const visN = fittedN.fs;
 
       const sign = pct > 0 ? '+' : '';
       const pctStr = `${sign}${pct.toFixed(2)}%`;
       const pctUnits = textUnits(pctStr);
-      const visP = Math.max(5.2, Math.min(15, visN * 0.78, availH * 0.25, availW / (pctUnits + 0.15)));
+      const visP = Math.max(minPctFs, Math.min(maxPctFs, visN * 0.84, availH * 0.24, availW / (pctUnits + 0.15)));
 
       return {
         show: true,
@@ -219,13 +222,13 @@
             fontSize: +(visN / scale).toFixed(2),
             fontWeight: '700',
             color: '#ffffff',
-            lineHeight: +((visN * 1.15) / scale).toFixed(2)
+            lineHeight: +((visN * 1.2) / scale).toFixed(2)
           },
           p: {
             fontSize: +(visP / scale).toFixed(2),
             fontWeight: '500',
-            color: 'rgba(255,255,255,0.9)',
-            lineHeight: +((visP * 1.18) / scale).toFixed(2)
+            color: 'rgba(255,255,255,0.88)',
+            lineHeight: +((visP * 1.2) / scale).toFixed(2)
           }
         }
       };
@@ -270,7 +273,7 @@
           return {
             name: it.name,
             value: [Number(it.weight || 0.1), pct, Number(it.price || 0), it.code],
-            label: buildDynamicLabel(it.name, pct, it.code),
+            label: buildDynamicLabel(it.name, pct, it.code, isMobile),
             itemStyle: { color: getColor(pct, maxR), borderColor: '#111317', borderWidth: 0.8 }
           };
         })
