@@ -22,10 +22,7 @@
     body {
       display: flex;
       flex-direction: column;
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
-      padding-left: env(safe-area-inset-left);
-      padding-right: env(safe-area-inset-right);
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
     header {
       display: flex;
@@ -159,6 +156,7 @@
     let rawData = null;
     let currentIndex = 'nikkei225';
     let currentPeriod = '1D';
+    let isClamping = false;
 
     const scaleMaxMap = { '1D': 3, '1W': 6, '1M': 10, 'YTD': 25, '1Y': 30 };
 
@@ -182,7 +180,7 @@
       const valEl = document.getElementById('index-val');
       const chgEl = document.getElementById('index-chg');
       if (!rawData || !rawData.index_summary || !rawData.index_summary[currentIndex]) {
-        valEl.textContent = '';
+        valEl.textContent = '--';
         chgEl.textContent = '';
         return;
       }
@@ -194,38 +192,43 @@
       chgEl.style.color = pct > 0 ? '#4ade80' : (pct < 0 ? '#f87171' : '#9ca3af');
     }
 
-    // 4辺・4隅が画面の内側に入り込まないようズームと中心座標を制限
     function clampView() {
+      if (isClamping) return;
       const opt = myChart.getOption();
       if (!opt || !opt.series || !opt.series[0]) return;
       const s = opt.series[0];
-      const rawZoom = typeof s.zoom === 'number' ? s.zoom : 1;
-      const zoom = Math.max(1, Math.min(6, rawZoom));
+
       const W = chartDom.clientWidth;
       const H = chartDom.clientHeight;
       if (!W || !H) return;
+
+      const rawZoom = (typeof s.zoom === 'number' && isFinite(s.zoom)) ? s.zoom : 1;
+      const zoom = rawZoom <= 1.02 ? 1 : Math.min(6, rawZoom);
 
       const minX = W / (2 * zoom);
       const maxX = W - minX;
       const minY = H / (2 * zoom);
       const maxY = H - minY;
 
-      const rawCenter = Array.isArray(s.center) && s.center.length === 2 ? s.center : [W / 2, H / 2];
-      const cx = Math.min(maxX, Math.max(minX, Number(rawCenter[0])));
-      const cy = Math.min(maxY, Math.max(minY, Number(rawCenter[1])));
-
-      if (
-        Math.abs(zoom - rawZoom) > 0.001 ||
-        Math.abs(cx - rawCenter[0]) > 0.5 ||
-        Math.abs(cy - rawCenter[1]) > 0.5
-      ) {
-        myChart.setOption({
-          series: [{
-            zoom: zoom,
-            center: [cx, cy]
-          }]
-        });
+      let cx = W / 2;
+      let cy = H / 2;
+      if (Array.isArray(s.center) && s.center.length === 2) {
+        const rx = Number(s.center[0]);
+        const ry = Number(s.center[1]);
+        if (isFinite(rx) && isFinite(ry)) {
+          cx = Math.min(maxX, Math.max(minX, rx));
+          cy = Math.min(maxY, Math.max(minY, ry));
+        }
       }
+
+      isClamping = true;
+      myChart.setOption({
+        series: [{
+          zoom: zoom,
+          center: [cx, cy]
+        }]
+      });
+      isClamping = false;
     }
 
     function renderChart(resetZoom = false) {
@@ -237,8 +240,8 @@
 
       const isMobile = window.innerWidth < 600;
       const maxRange = scaleMaxMap[currentPeriod] || 3;
-      const W = chartDom.clientWidth;
-      const H = chartDom.clientHeight;
+      const W = chartDom.clientWidth || window.innerWidth;
+      const H = chartDom.clientHeight || (window.innerHeight - 45);
 
       const treeData = sectorList.map(sec => ({
         name: sec.name,
@@ -258,4 +261,22 @@
 
       const indexLabel = currentIndex === 'nikkei225' ? '日経225内比率' : 'TOPIX100内比率';
 
-      const series
+      const seriesConfig = {
+        type: 'treemap',
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+        roam: true,
+        scaleLimit: { min: 1, max: 6 },
+        nodeClick: false,
+        breadcrumb: { show: false },
+        label: {
+          show: true,
+          position: 'inside',
+          overflow: 'truncate',
+          formatter: function (params) {
+            const d = params.data;
+            if (!d || !Array.isArray(d.value) || typeof d.value[1] !== 'number') return '';
+            const pct = d.value[1];
+            const sign = pct > 0
