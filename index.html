@@ -194,6 +194,40 @@
       chgEl.style.color = pct > 0 ? '#4ade80' : (pct < 0 ? '#f87171' : '#9ca3af');
     }
 
+    // 4辺・4隅が画面の内側に入り込まないようズームと中心座標を制限
+    function clampView() {
+      const opt = myChart.getOption();
+      if (!opt || !opt.series || !opt.series[0]) return;
+      const s = opt.series[0];
+      const rawZoom = typeof s.zoom === 'number' ? s.zoom : 1;
+      const zoom = Math.max(1, Math.min(6, rawZoom));
+      const W = chartDom.clientWidth;
+      const H = chartDom.clientHeight;
+      if (!W || !H) return;
+
+      const minX = W / (2 * zoom);
+      const maxX = W - minX;
+      const minY = H / (2 * zoom);
+      const maxY = H - minY;
+
+      const rawCenter = Array.isArray(s.center) && s.center.length === 2 ? s.center : [W / 2, H / 2];
+      const cx = Math.min(maxX, Math.max(minX, Number(rawCenter[0])));
+      const cy = Math.min(maxY, Math.max(minY, Number(rawCenter[1])));
+
+      if (
+        Math.abs(zoom - rawZoom) > 0.001 ||
+        Math.abs(cx - rawCenter[0]) > 0.5 ||
+        Math.abs(cy - rawCenter[1]) > 0.5
+      ) {
+        myChart.setOption({
+          series: [{
+            zoom: zoom,
+            center: [cx, cy]
+          }]
+        });
+      }
+    }
+
     function renderChart(resetZoom = false) {
       if (!rawData) return;
       updateIndexHeader();
@@ -203,6 +237,8 @@
 
       const isMobile = window.innerWidth < 600;
       const maxRange = scaleMaxMap[currentPeriod] || 3;
+      const W = chartDom.clientWidth;
+      const H = chartDom.clientHeight;
 
       const treeData = sectorList.map(sec => ({
         name: sec.name,
@@ -222,129 +258,4 @@
 
       const indexLabel = currentIndex === 'nikkei225' ? '日経225内比率' : 'TOPIX100内比率';
 
-      myChart.setOption({
-        tooltip: {
-          confine: true,
-          backgroundColor: 'rgba(22, 24, 29, 0.95)',
-          borderColor: '#4b5563',
-          textStyle: { color: '#fff', fontSize: 12 },
-          formatter: function (info) {
-            const d = info.data;
-            if (!d || !Array.isArray(d.value)) return info.name;
-            const [weight, pct, price, code] = d.value;
-            const sign = pct > 0 ? '+' : '';
-            const color = pct > 0 ? '#4ade80' : (pct < 0 ? '#f87171' : '#ccc');
-            return `
-              <div style="font-weight:bold;font-size:13px;">${d.name} (${code})</div>
-              <div>現在値: <b>${price.toLocaleString()}円</b></div>
-              <div>${indexLabel}: <b>${weight.toFixed(2)}%</b></div>
-              <div>騰落率 (${currentPeriod}): <b style="color:${color};font-size:14px;">${sign}${pct.toFixed(2)}%</b></div>
-            `;
-          }
-        },
-        series: [{
-          type: 'treemap',
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: 0,
-          roam: true,
-          nodeClick: false,
-          breadcrumb: { show: false },
-          label: {
-            show: true,
-            position: 'inside',
-            overflow: 'truncate',
-            formatter: function (params) {
-              const d = params.data;
-              if (!d || !Array.isArray(d.value) || typeof d.value[1] !== 'number') return '';
-              const pct = d.value[1];
-              const sign = pct > 0 ? '+' : '';
-              return `{name|${d.name}}\n{pct|${sign}${pct.toFixed(2)}%}`;
-            },
-            rich: {
-              name: {
-                fontSize: isMobile ? 10 : 12,
-                fontWeight: 'bold',
-                color: '#fff',
-                lineHeight: isMobile ? 13 : 16
-              },
-              pct: {
-                fontSize: isMobile ? 9 : 11,
-                color: '#f3f4f6',
-                lineHeight: isMobile ? 11 : 14
-              }
-            }
-          },
-          levels: [
-            {
-              itemStyle: { borderColor: '#16181d', borderWidth: isMobile ? 1.5 : 2, gapWidth: isMobile ? 1 : 2 }
-            },
-            {
-              itemStyle: { borderColor: '#16181d', borderWidth: isMobile ? 1.5 : 2, gapWidth: 1 },
-              upperLabel: {
-                show: true,
-                height: isMobile ? 15 : 17,
-                color: '#9ca3af',
-                backgroundColor: '#1b1e26',
-                fontSize: isMobile ? 9 : 10,
-                fontWeight: 'bold',
-                padding: [0, 3],
-                overflow: 'truncate',
-                formatter: '{b}'
-              }
-            },
-            {
-              itemStyle: { borderColor: '#16181d', borderWidth: 1, gapWidth: 0 },
-              upperLabel: { show: false }
-            }
-          ],
-          data: treeData
-        }]
-      }, resetZoom);
-    }
-
-    function handleResize() {
-      myChart.resize();
-      if (rawData) renderChart(false);
-    }
-
-    fetch('data.json?t=' + Date.now())
-      .then(res => {
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        return res.json();
-      })
-      .then(data => {
-        rawData = data;
-        document.getElementById('updated').textContent = `${data.updated_at}`;
-        renderChart(true);
-        setTimeout(() => myChart.resize(), 150);
-      })
-      .catch(err => {
-        console.error(err);
-        document.getElementById('updated').textContent = 'データ準備中';
-      });
-
-    document.getElementById('index-buttons').addEventListener('click', (e) => {
-      if (e.target.tagName !== 'BUTTON') return;
-      document.querySelectorAll('#index-buttons button').forEach(b => b.classList.remove('active'));
-      e.target.classList.add('active');
-      currentIndex = e.target.dataset.index;
-      renderChart(true);
-    });
-
-    document.getElementById('period-buttons').addEventListener('click', (e) => {
-      if (e.target.tagName !== 'BUTTON') return;
-      document.querySelectorAll('#period-buttons button').forEach(b => b.classList.remove('active'));
-      e.target.classList.add('active');
-      currentPeriod = e.target.dataset.period;
-      renderChart(false);
-    });
-
-    window.addEventListener('resize', handleResize);
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', handleResize);
-    }
-  </script>
-</body>
-</html>
+      const series
