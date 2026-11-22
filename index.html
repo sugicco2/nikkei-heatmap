@@ -9,118 +9,26 @@
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    html, body {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background-color: #16181d;
-      color: #ffffff;
-      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
-    }
-    body {
-      display: flex;
-      flex-direction: column;
-      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-    }
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 6px 8px;
-      background-color: #1e2128;
-      border-bottom: 1px solid #2e323c;
-      gap: 6px;
-      flex-shrink: 0;
-    }
-    .left-area {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      min-width: 0;
-    }
-    .index-switch {
-      display: flex;
-      background: #13151a;
-      padding: 2px;
-      border-radius: 7px;
-      border: 1px solid #323744;
-      flex-shrink: 0;
-    }
-    .index-switch button {
-      background: transparent;
-      border: none;
-      color: #8e96a4;
-      padding: 4px 7px;
-      font-size: 11px;
-      font-weight: 700;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    .index-switch button.active {
-      background: #e5e7eb;
-      color: #111827;
-    }
-    .index-quote {
-      display: flex;
-      flex-direction: column;
-      line-height: 1.15;
-      font-variant-numeric: tabular-nums;
-      min-width: 0;
-    }
-    .quote-top {
-      display: flex;
-      align-items: baseline;
-      gap: 4px;
-    }
-    #index-val {
-      font-size: 13px;
-      font-weight: 800;
-      color: #f9fafb;
-    }
-    #index-chg {
-      font-size: 11px;
-      font-weight: 700;
-    }
-    #updated {
-      font-size: 9px;
-      color: #6b7280;
-    }
-    .controls {
-      display: flex;
-      gap: 2px;
-      flex-shrink: 0;
-    }
-    .controls button {
-      background: #2b303b;
-      color: #c5cbd6;
-      border: 1px solid #3c4250;
-      padding: 4px 6px;
-      border-radius: 5px;
-      font-size: 11px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .controls button.active {
-      background: #3b82f6;
-      color: #ffffff;
-      border-color: #3b82f6;
-    }
-    #chart {
-      flex: 1;
-      min-height: 0;
-      width: 100%;
-    }
+    html, body { position: fixed; inset: 0; width: 100%; height: 100%; overflow: hidden; background: #16181d; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif; }
+    body { display: flex; flex-direction: column; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+    header { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: #1e2128; border-bottom: 1px solid #2e323c; gap: 6px; flex-shrink: 0; }
+    .left-area { display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .index-switch { display: flex; background: #13151a; padding: 2px; border-radius: 7px; border: 1px solid #323744; flex-shrink: 0; }
+    .index-switch button { background: transparent; border: none; color: #8e96a4; padding: 4px 7px; font-size: 11px; font-weight: 700; border-radius: 5px; cursor: pointer; }
+    .index-switch button.active { background: #e5e7eb; color: #111827; }
+    .index-quote { display: flex; flex-direction: column; line-height: 1.15; font-variant-numeric: tabular-nums; }
+    .quote-top { display: flex; align-items: baseline; gap: 4px; }
+    #index-val { font-size: 13px; font-weight: 800; color: #f9fafb; }
+    #index-chg { font-size: 11px; font-weight: 700; }
+    #updated { font-size: 9px; color: #6b7280; }
+    .controls { display: flex; gap: 2px; flex-shrink: 0; }
+    .controls button { background: #2b303b; color: #c5cbd6; border: 1px solid #3c4250; padding: 4px 6px; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; }
+    .controls button.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+    #chart { flex: 1; min-height: 0; width: 100%; }
     @media (min-width: 600px) {
-      header { padding: 6px 12px; }
-      .index-switch button { padding: 4px 10px; font-size: 12px; }
       .index-quote { flex-direction: row; align-items: baseline; gap: 8px; }
       #index-val { font-size: 15px; }
       #index-chg { font-size: 12px; }
-      #updated { font-size: 10px; }
-      .controls { gap: 4px; }
-      .controls button { padding: 4px 9px; font-size: 11px; }
     }
   </style>
 </head>
@@ -132,10 +40,7 @@
         <button data-index="topix">TOPIX</button>
       </div>
       <div class="index-quote">
-        <div class="quote-top">
-          <span id="index-val">--</span>
-          <span id="index-chg"></span>
-        </div>
+        <div class="quote-top"><span id="index-val">--</span><span id="index-chg"></span></div>
         <span id="updated">読込中...</span>
       </div>
     </div>
@@ -147,136 +52,115 @@
       <button data-period="1Y">1Y</button>
     </div>
   </header>
-
   <div id="chart"></div>
-
   <script>
+    window.onerror = function(msg) { document.getElementById('updated').textContent = 'Err: ' + msg; };
     const chartDom = document.getElementById('chart');
     const myChart = echarts.init(chartDom);
-    let rawData = null;
-    let currentIndex = 'nikkei225';
-    let currentPeriod = '1D';
-    let isClamping = false;
-
+    let rawData = null, currentIndex = 'nikkei225', currentPeriod = '1D', isClamping = false;
     const scaleMaxMap = { '1D': 3, '1W': 6, '1M': 10, 'YTD': 25, '1Y': 30 };
 
-    function getFinvizColor(val, maxRange) {
+    function getColor(val, maxRange) {
       if (!val || isNaN(val)) return '#2d3139';
-      const ratio = Math.min(Math.abs(val) / maxRange, 1);
-      if (val > 0) {
-        const r = Math.round(42 - ratio * 24);
-        const g = Math.round(68 + ratio * 115);
-        const b = Math.round(56 + ratio * 24);
-        return `rgb(${r},${g},${b})`;
-      } else {
-        const r = Math.round(76 + ratio * 164);
-        const g = Math.round(44 - ratio * 14);
-        const b = Math.round(48 - ratio * 16);
-        return `rgb(${r},${g},${b})`;
-      }
-    }
-
-    function updateIndexHeader() {
-      const valEl = document.getElementById('index-val');
-      const chgEl = document.getElementById('index-chg');
-      if (!rawData || !rawData.index_summary || !rawData.index_summary[currentIndex]) {
-        valEl.textContent = '--';
-        chgEl.textContent = '';
-        return;
-      }
-      const info = rawData.index_summary[currentIndex];
-      const pct = Number(info[currentPeriod] || 0);
-      const sign = pct > 0 ? '+' : '';
-      valEl.textContent = Number(info.value).toLocaleString('ja-JP', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      chgEl.textContent = `${sign}${pct.toFixed(2)}%`;
-      chgEl.style.color = pct > 0 ? '#4ade80' : (pct < 0 ? '#f87171' : '#9ca3af');
+      const r = Math.min(Math.abs(val) / maxRange, 1);
+      return val > 0 ? `rgb(${Math.round(42 - r * 24)},${Math.round(68 + r * 115)},${Math.round(56 + r * 24)})`
+                     : `rgb(${Math.round(76 + r * 164)},${Math.round(44 - r * 14)},${Math.round(48 - r * 16)})`;
     }
 
     function clampView() {
       if (isClamping) return;
       const opt = myChart.getOption();
-      if (!opt || !opt.series || !opt.series[0]) return;
-      const s = opt.series[0];
-
-      const W = chartDom.clientWidth;
-      const H = chartDom.clientHeight;
-      if (!W || !H) return;
-
-      const rawZoom = (typeof s.zoom === 'number' && isFinite(s.zoom)) ? s.zoom : 1;
-      const zoom = rawZoom <= 1.02 ? 1 : Math.min(6, rawZoom);
-
-      const minX = W / (2 * zoom);
-      const maxX = W - minX;
-      const minY = H / (2 * zoom);
-      const maxY = H - minY;
-
-      let cx = W / 2;
-      let cy = H / 2;
-      if (Array.isArray(s.center) && s.center.length === 2) {
-        const rx = Number(s.center[0]);
-        const ry = Number(s.center[1]);
-        if (isFinite(rx) && isFinite(ry)) {
-          cx = Math.min(maxX, Math.max(minX, rx));
-          cy = Math.min(maxY, Math.max(minY, ry));
-        }
+      const s = opt && opt.series && opt.series[0];
+      const W = chartDom.clientWidth, H = chartDom.clientHeight;
+      if (!s || !W || !H) return;
+      const z = (typeof s.zoom === 'number' && s.zoom > 1.02) ? Math.min(6, s.zoom) : 1;
+      const minX = W / (2 * z), minY = H / (2 * z);
+      let cx = W / 2, cy = H / 2;
+      if (Array.isArray(s.center) && s.center.length === 2 && isFinite(s.center[0]) && isFinite(s.center[1])) {
+        cx = Math.min(W - minX, Math.max(minX, s.center[0]));
+        cy = Math.min(H - minY, Math.max(minY, s.center[1]));
       }
-
       isClamping = true;
-      myChart.setOption({
-        series: [{
-          zoom: zoom,
-          center: [cx, cy]
-        }]
-      });
+      myChart.setOption({ series: [{ zoom: z, center: [cx, cy] }] });
       isClamping = false;
     }
 
-    function renderChart(resetZoom = false) {
+    function renderChart(reset) {
       if (!rawData) return;
-      updateIndexHeader();
-
-      const sectorList = rawData.indices ? rawData.indices[currentIndex] : rawData.sectors;
-      if (!Array.isArray(sectorList)) return;
-
-      const isMobile = window.innerWidth < 600;
-      const maxRange = scaleMaxMap[currentPeriod] || 3;
-      const W = chartDom.clientWidth || window.innerWidth;
-      const H = chartDom.clientHeight || (window.innerHeight - 45);
-
-      const treeData = sectorList.map(sec => ({
-        name: sec.name,
-        children: sec.children.map(item => {
-          const pct = Number(item[currentPeriod] || 0);
-          return {
-            name: item.name,
-            value: [Number(item.weight || 0.1), pct, Number(item.price || 0), item.code],
-            itemStyle: {
-              color: getFinvizColor(pct, maxRange),
-              borderColor: '#16181d',
-              borderWidth: isMobile ? 1 : 1.5
-            }
-          };
-        })
-      }));
-
-      const indexLabel = currentIndex === 'nikkei225' ? '日経225内比率' : 'TOPIX100内比率';
-
-      const seriesConfig = {
-        type: 'treemap',
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-        roam: true,
-        scaleLimit: { min: 1, max: 6 },
-        nodeClick: false,
-        breadcrumb: { show: false },
+      const info = rawData.index_summary && rawData.index_summary[currentIndex];
+      const valEl = document.getElementById('index-val'), chgEl = document.getElementById('index-chg');
+      if (info) {
+        const p = Number(info[currentPeriod] || 0);
+        valEl.textContent = Number(info.value).toLocaleString('ja-JP', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        chgEl.textContent = `${p > 0 ? '+' : ''}${p.toFixed(2)}%`;
+        chgEl.style.color = p > 0 ? '#4ade80' : (p < 0 ? '#f87171' : '#9ca3af');
+      }
+      const list = rawData.indices ? rawData.indices[currentIndex] : rawData.sectors;
+      if (!Array.isArray(list)) return;
+      const isMobile = window.innerWidth < 600, maxR = scaleMaxMap[currentPeriod] || 3;
+      const W = chartDom.clientWidth || window.innerWidth, H = chartDom.clientHeight || (window.innerHeight - 45);
+      const series = {
+        type: 'treemap', left: 0, right: 0, top: 0, bottom: 0, roam: true, scaleLimit: { min: 1, max: 6 },
+        nodeClick: false, breadcrumb: { show: false },
         label: {
-          show: true,
-          position: 'inside',
-          overflow: 'truncate',
-          formatter: function (params) {
-            const d = params.data;
-            if (!d || !Array.isArray(d.value) || typeof d.value[1] !== 'number') return '';
-            const pct = d.value[1];
-            const sign = pct > 0
+          show: true, position: 'inside', overflow: 'truncate',
+          formatter: p => (p.data && Array.isArray(p.data.value)) ? `{n|${p.data.name}}\n{p|${p.data.value[1] > 0 ? '+' : ''}${p.data.value[1].toFixed(2)}%}` : '',
+          rich: { n: { fontSize: isMobile ? 10 : 12, fontWeight: 'bold', color: '#fff', lineHeight: isMobile ? 13 : 16 },
+                  p: { fontSize: isMobile ? 9 : 11, color: '#f3f4f6', lineHeight: isMobile ? 11 : 14 } }
+        },
+        levels: [
+          { itemStyle: { borderColor: '#16181d', borderWidth: 1.5, gapWidth: 1 } },
+          { itemStyle: { borderColor: '#16181d', borderWidth: 1.5, gapWidth: 1 },
+            upperLabel: { show: true, height: isMobile ? 15 : 17, color: '#9ca3af', backgroundColor: '#1b1e26', fontSize: isMobile ? 9 : 10, fontWeight: 'bold', padding: [0, 3], overflow: 'truncate', formatter: '{b}' } },
+          { itemStyle: { borderColor: '#16181d', borderWidth: 1, gapWidth: 0 }, upperLabel: { show: false } }
+        ],
+        data: list.map(sec => ({
+          name: sec.name,
+          children: sec.children.map(it => {
+            const pct = Number(it[currentPeriod] || 0);
+            return { name: it.name, value: [Number(it.weight || 0.1), pct, Number(it.price || 0), it.code], itemStyle: { color: getColor(pct, maxR), borderColor: '#16181d', borderWidth: 1 } };
+          })
+        }))
+      };
+      if (reset) { series.zoom = 1; series.center = [W / 2, H / 2]; }
+      myChart.setOption({
+        tooltip: {
+          confine: true, backgroundColor: 'rgba(22,24,29,0.95)', borderColor: '#4b5563', textStyle: { color: '#fff', fontSize: 12 },
+          formatter: i => {
+            const d = i.data;
+            if (!d || !Array.isArray(d.value)) return i.name;
+            const [w, pct, pr, code] = d.value;
+            return `<div style="font-weight:bold">${d.name} (${code})</div><div>現在値: <b>${pr.toLocaleString()}円</b></div><div>構成比: <b>${w.toFixed(2)}%</b></div><div>騰落率: <b style="color:${pct > 0 ? '#4ade80' : '#f87171'}">${pct > 0 ? '+' : ''}${pct.toFixed(2)}%</b></div>`;
+          }
+        },
+        series: [series]
+      }, reset);
+    }
+
+    myChart.on('treemaproam', clampView);
+    myChart.on('dblclick', () => renderChart(true));
+
+    fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
+      rawData = d;
+      document.getElementById('updated').textContent = d.updated_at;
+      renderChart(true);
+    }).catch(e => { document.getElementById('updated').textContent = 'LoadErr'; });
+
+    document.getElementById('index-buttons').onclick = e => {
+      if (e.target.tagName !== 'BUTTON') return;
+      document.querySelectorAll('#index-buttons button').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      currentIndex = e.target.dataset.index;
+      renderChart(true);
+    };
+    document.getElementById('period-buttons').onclick = e => {
+      if (e.target.tagName !== 'BUTTON') return;
+      document.querySelectorAll('#period-buttons button').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      currentPeriod = e.target.dataset.period;
+      renderChart(false);
+    };
+    window.onresize = () => { myChart.resize(); if (rawData) renderChart(true); };
+  </script>
+</body>
+</html>
