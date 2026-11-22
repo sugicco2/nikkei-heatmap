@@ -9,27 +9,121 @@
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    html, body { position: fixed; inset: 0; width: 100%; height: 100%; overflow: hidden; background: #111317; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; }
-    body { display: flex; flex-direction: column; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
-    header { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: #181b20; border-bottom: 1px solid #262a33; gap: 6px; flex-shrink: 0; z-index: 10; }
-    .left-area { display: flex; align-items: center; gap: 6px; min-width: 0; }
-    .index-switch { display: flex; background: #101216; padding: 2px; border-radius: 7px; border: 1px solid #2d323e; flex-shrink: 0; }
-    .index-switch button { background: transparent; border: none; color: #8e96a4; padding: 4px 7px; font-size: 11px; font-weight: 700; border-radius: 5px; cursor: pointer; }
-    .index-switch button.active { background: #e5e7eb; color: #111827; }
-    .index-quote { display: flex; flex-direction: column; line-height: 1.15; font-variant-numeric: tabular-nums; }
-    .quote-top { display: flex; align-items: baseline; gap: 4px; }
-    #index-val { font-size: 13px; font-weight: 800; color: #f9fafb; }
-    #index-chg { font-size: 11px; font-weight: 700; }
-    #updated { font-size: 9px; color: #6b7280; }
-    .controls { display: flex; gap: 2px; flex-shrink: 0; }
-    .controls button { background: #232730; color: #c5cbd6; border: 1px solid #343946; padding: 4px 6px; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; }
-    .controls button.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
-    #chart-wrap { flex: 1; min-height: 0; width: 100%; position: relative; overflow: hidden; touch-action: none; }
-    #chart { width: 100%; height: 100%; transform-origin: 0 0; will-change: transform; }
+    html, body {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #16181d;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      background-color: #1e2128;
+      border-bottom: 1px solid #2e323c;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .left-area {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+    .index-switch {
+      display: flex;
+      background: #13151a;
+      padding: 2px;
+      border-radius: 7px;
+      border: 1px solid #323744;
+      flex-shrink: 0;
+    }
+    .index-switch button {
+      background: transparent;
+      border: none;
+      color: #8e96a4;
+      padding: 4px 7px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .index-switch button.active {
+      background: #e5e7eb;
+      color: #111827;
+    }
+    .index-quote {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.15;
+      font-variant-numeric: tabular-nums;
+      min-width: 0;
+    }
+    .quote-top {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+    #index-val {
+      font-size: 13px;
+      font-weight: 800;
+      color: #f9fafb;
+    }
+    #index-chg {
+      font-size: 11px;
+      font-weight: 700;
+    }
+    #updated {
+      font-size: 9px;
+      color: #6b7280;
+    }
+    .controls {
+      display: flex;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+    .controls button {
+      background: #2b303b;
+      color: #c5cbd6;
+      border: 1px solid #3c4250;
+      padding: 4px 6px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .controls button.active {
+      background: #3b82f6;
+      color: #ffffff;
+      border-color: #3b82f6;
+    }
+    #chart {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+    }
     @media (min-width: 600px) {
+      header { padding: 6px 12px; }
+      .index-switch button { padding: 4px 10px; font-size: 12px; }
       .index-quote { flex-direction: row; align-items: baseline; gap: 8px; }
       #index-val { font-size: 15px; }
       #index-chg { font-size: 12px; }
+      #updated { font-size: 10px; }
+      .controls { gap: 4px; }
+      .controls button { padding: 4px 9px; font-size: 11px; }
     }
   </style>
 </head>
@@ -41,7 +135,10 @@
         <button data-index="topix">TOPIX</button>
       </div>
       <div class="index-quote">
-        <div class="quote-top"><span id="index-val">--</span><span id="index-chg"></span></div>
+        <div class="quote-top">
+          <span id="index-val">--</span>
+          <span id="index-chg"></span>
+        </div>
         <span id="updated">読込中...</span>
       </div>
     </div>
@@ -53,284 +150,201 @@
       <button data-period="1Y">1Y</button>
     </div>
   </header>
-  <div id="chart-wrap"><div id="chart"></div></div>
-  <script>
-    const wrap = document.getElementById('chart-wrap');
-    const chartDom = document.getElementById('chart');
-    const dpr = Math.min(Math.max(window.devicePixelRatio || 2, 2.5), 4);
-    const myChart = echarts.init(chartDom, null, { devicePixelRatio: dpr });
 
-    let rawData = null, currentIndex = 'nikkei225', currentPeriod = '1D';
-    let scale = 1, tx = 0, ty = 0, tileSizes = {}, zoomTimer = null;
+  <div id="chart"></div>
+
+  <script>
+    const chartDom = document.getElementById('chart');
+    const myChart = echarts.init(chartDom);
+    let rawData = null;
+    let currentIndex = 'nikkei225';
+    let currentPeriod = '1D';
+
     const scaleMaxMap = { '1D': 3, '1W': 6, '1M': 10, 'YTD': 25, '1Y': 30 };
 
-    function scheduleLabelRefresh() {
-      clearTimeout(zoomTimer);
-      zoomTimer = setTimeout(() => renderChart(false), 50);
+    function getFinvizColor(val, maxRange) {
+      if (!val || isNaN(val)) return '#2d3139';
+      const ratio = Math.min(Math.abs(val) / maxRange, 1);
+      if (val > 0) {
+        const r = Math.round(42 - ratio * 24);
+        const g = Math.round(68 + ratio * 115);
+        const b = Math.round(56 + ratio * 24);
+        return `rgb(${r},${g},${b})`;
+      } else {
+        const r = Math.round(76 + ratio * 164);
+        const g = Math.round(44 - ratio * 14);
+        const b = Math.round(48 - ratio * 16);
+        return `rgb(${r},${g},${b})`;
+      }
     }
 
-    function applyTransform(refreshLabels = false) {
-      const W = wrap.clientWidth, H = wrap.clientHeight;
-      scale = Math.max(1, Math.min(6, scale));
-      if (scale <= 1.005) { scale = 1; tx = 0; ty = 0; }
-      else {
-        tx = Math.min(0, Math.max(W * (1 - scale), tx));
-        ty = Math.min(0, Math.max(H * (1 - scale), ty));
+    function updateIndexHeader() {
+      const valEl = document.getElementById('index-val');
+      const chgEl = document.getElementById('index-chg');
+      if (!rawData || !rawData.index_summary || !rawData.index_summary[currentIndex]) {
+        valEl.textContent = '';
+        chgEl.textContent = '';
+        return;
       }
-      chartDom.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`;
-      if (refreshLabels) scheduleLabelRefresh();
-    }
-
-    function zoomAt(newScale, clientX, clientY, refreshLabels = false) {
-      const rect = wrap.getBoundingClientRect();
-      const px = clientX - rect.left, py = clientY - rect.top;
-      const clamped = Math.max(1, Math.min(6, newScale));
-      const ratio = clamped / scale;
-      tx = px - (px - tx) * ratio;
-      ty = py - (py - ty) * ratio;
-      scale = clamped;
-      applyTransform(refreshLabels);
-    }
-
-    function resetTransform() { scale = 1; tx = 0; ty = 0; applyTransform(false); }
-
-    let tMode = null, startX = 0, startY = 0, startTx = 0, startTy = 0, startDist = 0, startScale = 1, moved = false, lastTap = 0;
-    wrap.addEventListener('touchstart', e => {
-      if (e.touches.length === 1) {
-        tMode = 'pan'; moved = false;
-        startX = e.touches[0].clientX; startY = e.touches[0].clientY; startTx = tx; startTy = ty;
-      } else if (e.touches.length === 2) {
-        tMode = 'pinch'; moved = true;
-        startDist = Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY);
-        startScale = scale;
-      }
-    }, { passive: true });
-
-    wrap.addEventListener('touchmove', e => {
-      if (tMode === 'pinch' && e.touches.length === 2) {
-        e.preventDefault();
-        const dist = Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY);
-        zoomAt(startScale * (dist / startDist), (e.touches[0].clientX + e.touches[1].clientX) / 2, (e.touches[0].clientY + e.touches[1].clientY) / 2, false);
-      } else if (tMode === 'pan' && e.touches.length === 1 && scale > 1) {
-        const dx = e.touches[0].clientX - startX, dy = e.touches[0].clientY - startY;
-        if (Math.hypot(dx, dy) > 4) moved = true;
-        if (moved) { e.preventDefault(); tx = startTx + dx; ty = startTy + dy; applyTransform(false); }
-      }
-    }, { passive: false });
-
-    wrap.addEventListener('touchend', e => {
-      if (tMode === 'pinch') scheduleLabelRefresh();
-      if (!moved && e.changedTouches.length === 1) {
-        const now = Date.now();
-        if (now - lastTap < 300) {
-          if (scale > 1) { resetTransform(); scheduleLabelRefresh(); }
-          else zoomAt(2.8, e.changedTouches[0].clientX, e.changedTouches[0].clientY, true);
-          lastTap = 0;
-        } else { lastTap = now; }
-      }
-      if (e.touches.length === 0) tMode = null;
-    });
-
-    let mDrag = false;
-    wrap.addEventListener('wheel', e => {
-      e.preventDefault();
-      zoomAt(scale * (e.deltaY < 0 ? 1.15 : 0.87), e.clientX, e.clientY, true);
-    }, { passive: false });
-    wrap.addEventListener('mousedown', e => { if (scale > 1) { mDrag = true; startX = e.clientX; startY = e.clientY; startTx = tx; startTy = ty; } });
-    window.addEventListener('mousemove', e => { if (mDrag) { tx = startTx + (e.clientX - startX); ty = startTy + (e.clientY - startY); applyTransform(false); } });
-    window.addEventListener('mouseup', () => { mDrag = false; });
-    wrap.addEventListener('dblclick', e => {
-      if (scale > 1) { resetTransform(); scheduleLabelRefresh(); }
-      else zoomAt(2.8, e.clientX, e.clientY, true);
-    });
-
-    function getColor(val, maxRange) {
-      if (!val || isNaN(val)) return '#262a32';
-      const r = Math.min(Math.abs(val) / maxRange, 1);
-      return val > 0 ? `rgb(${Math.round(36 - r * 20)},${Math.round(64 + r * 116)},${Math.round(52 + r * 24)})`
-                     : `rgb(${Math.round(74 + r * 166)},${Math.round(38 - r * 12)},${Math.round(42 - r * 14)})`;
-    }
-
-    function textUnits(str) {
-      let u = 0;
-      for (let i = 0; i < str.length; i++) u += str.charCodeAt(i) > 255 ? 1.0 : 0.58;
-      return Math.max(u, 1.4);
-    }
-
-    function fitText(str, maxW, maxFs, minFs) {
-      let out = '';
-      let used = 0;
-      for (let i = 0; i < str.length; i++) {
-        const w = str.charCodeAt(i) > 255 ? 1.0 : 0.58;
-        if ((used + w) * minFs > maxW && out.length > 0) break;
-        out += str[i];
-        used += w;
-      }
-      const fs = Math.max(minFs, Math.min(maxFs, maxW / Math.max(used, 1)));
-      return { text: out, fs };
-    }
-
-    function buildDynamicLabel(name, pct, code, isMobile) {
-      const sz = tileSizes[code];
-      if (!sz) return { show: false };
-
-      const availW = sz.w * scale - 3;
-      const availH = sz.h * scale - 2;
-      if (availW < 11 || availH < 8) return { show: false };
-
-      // 最大フォントをヘッダーの「日経225」「TOPIX」タブ（11〜12px）基準に統一
-      const maxNameFs = isMobile ? 12 : 14;
-      const maxPctFs = isMobile ? 10 : 11.5;
-      const minNameFs = 5.2;
-      const minPctFs = 4.8;
-      const units = textUnits(name);
-
-      // 小セル・横長セルは1行中央表示（企業名を最優先）
-      if (availH < 20 || availW < 22) {
-        const lineCap = Math.min(maxNameFs, availH * 0.65);
-        const fitted = fitText(name, availW, lineCap, minNameFs);
-        return {
-          show: true,
-          position: 'inside',
-          align: 'center',
-          verticalAlign: 'middle',
-          formatter: fitted.text,
-          fontSize: +(fitted.fs / scale).toFixed(2),
-          fontWeight: '700',
-          color: '#ffffff'
-        };
-      }
-
-      // 中〜大セルは2行中央表示（最大でも12〜14pxで上品に統一）
-      const rawMaxN = Math.min(maxNameFs, availH * 0.30, availW / (Math.min(units, 5.2) + 0.1));
-      const fittedN = fitText(name, availW, Math.max(minNameFs, rawMaxN), minNameFs);
-      const visN = fittedN.fs;
-
+      const info = rawData.index_summary[currentIndex];
+      const pct = Number(info[currentPeriod] || 0);
       const sign = pct > 0 ? '+' : '';
-      const pctStr = `${sign}${pct.toFixed(2)}%`;
-      const pctUnits = textUnits(pctStr);
-      const visP = Math.max(minPctFs, Math.min(maxPctFs, visN * 0.84, availH * 0.24, availW / (pctUnits + 0.15)));
-
-      return {
-        show: true,
-        position: 'inside',
-        align: 'center',
-        verticalAlign: 'middle',
-        formatter: `{n|${fittedN.text}}\n{p|${pctStr}}`,
-        rich: {
-          n: {
-            fontSize: +(visN / scale).toFixed(2),
-            fontWeight: '700',
-            color: '#ffffff',
-            lineHeight: +((visN * 1.2) / scale).toFixed(2)
-          },
-          p: {
-            fontSize: +(visP / scale).toFixed(2),
-            fontWeight: '500',
-            color: 'rgba(255,255,255,0.88)',
-            lineHeight: +((visP * 1.2) / scale).toFixed(2)
-          }
-        }
-      };
+      valEl.textContent = Number(info.value).toLocaleString('ja-JP', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      chgEl.textContent = `${sign}${pct.toFixed(2)}%`;
+      chgEl.style.color = pct > 0 ? '#4ade80' : (pct < 0 ? '#f87171' : '#9ca3af');
     }
 
-    function captureTileSizes() {
-      tileSizes = {};
-      try {
-        const sm = myChart.getModel().getSeriesByIndex(0);
-        const vr = sm && sm.getViewRoot();
-        const data = sm && sm.getData();
-        if (vr && data) {
-          vr.eachNode(node => {
-            const raw = data.getRawDataItem(node.dataIndex);
-            const lay = node.getLayout();
-            if (raw && Array.isArray(raw.value) && lay && lay.width > 0 && lay.height > 0) {
-              tileSizes[raw.value[3]] = { w: lay.width, h: lay.height };
-            }
-          });
-        }
-      } catch (e) {}
-    }
-
-    function renderChart(recalcLayout = true) {
+    function renderChart(resetZoom = false) {
       if (!rawData) return;
-      const info = rawData.index_summary && rawData.index_summary[currentIndex];
-      const valEl = document.getElementById('index-val'), chgEl = document.getElementById('index-chg');
-      if (info) {
-        const p = Number(info[currentPeriod] || 0);
-        valEl.textContent = Number(info.value).toLocaleString('ja-JP', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        chgEl.textContent = `${p > 0 ? '+' : ''}${p.toFixed(2)}%`;
-        chgEl.style.color = p > 0 ? '#4ade80' : (p < 0 ? '#f87171' : '#9ca3af');
-      }
-      const list = rawData.indices ? rawData.indices[currentIndex] : rawData.sectors;
-      if (!Array.isArray(list)) return;
-      const isMobile = window.innerWidth < 600, maxR = scaleMaxMap[currentPeriod] || 3;
+      updateIndexHeader();
 
-      const treeData = list.map(sec => ({
+      const sectorList = rawData.indices ? rawData.indices[currentIndex] : rawData.sectors;
+      if (!Array.isArray(sectorList)) return;
+
+      const isMobile = window.innerWidth < 600;
+      const maxRange = scaleMaxMap[currentPeriod] || 3;
+
+      const treeData = sectorList.map(sec => ({
         name: sec.name,
-        children: sec.children.map(it => {
-          const pct = Number(it[currentPeriod] || 0);
+        children: sec.children.map(item => {
+          const pct = Number(item[currentPeriod] || 0);
           return {
-            name: it.name,
-            value: [Number(it.weight || 0.1), pct, Number(it.price || 0), it.code],
-            label: buildDynamicLabel(it.name, pct, it.code, isMobile),
-            itemStyle: { color: getColor(pct, maxR), borderColor: '#111317', borderWidth: 0.8 }
+            name: item.name,
+            value: [Number(item.weight || 0.1), pct, Number(item.price || 0), item.code],
+            itemStyle: {
+              color: getFinvizColor(pct, maxRange),
+              borderColor: '#16181d',
+              borderWidth: isMobile ? 1 : 1.5
+            }
           };
         })
       }));
 
+      const indexLabel = currentIndex === 'nikkei225' ? '日経225内比率' : 'TOPIX100内比率';
+
       myChart.setOption({
-        animation: false,
         tooltip: {
-          appendToBody: true, confine: true,
-          backgroundColor: 'rgba(17,19,23,0.96)', borderColor: '#4b5563', textStyle: { color: '#fff', fontSize: 12 },
-          formatter: i => {
-            const d = i.data;
-            if (!d || !Array.isArray(d.value)) return i.name;
-            const [w, pct, pr, code] = d.value;
-            return `<div style="font-weight:bold">${d.name} (${code})</div><div>現在値: <b>${pr.toLocaleString()}円</b></div><div>構成比: <b>${w.toFixed(2)}%</b></div><div>騰落率: <b style="color:${pct > 0 ? '#4ade80' : '#f87171'}">${pct > 0 ? '+' : ''}${pct.toFixed(2)}%</b></div>`;
+          confine: true,
+          backgroundColor: 'rgba(22, 24, 29, 0.95)',
+          borderColor: '#4b5563',
+          textStyle: { color: '#fff', fontSize: 12 },
+          formatter: function (info) {
+            const d = info.data;
+            if (!d || !Array.isArray(d.value)) return info.name;
+            const [weight, pct, price, code] = d.value;
+            const sign = pct > 0 ? '+' : '';
+            const color = pct > 0 ? '#4ade80' : (pct < 0 ? '#f87171' : '#ccc');
+            return `
+              <div style="font-weight:bold;font-size:13px;">${d.name} (${code})</div>
+              <div>現在値: <b>${price.toLocaleString()}円</b></div>
+              <div>${indexLabel}: <b>${weight.toFixed(2)}%</b></div>
+              <div>騰落率 (${currentPeriod}): <b style="color:${color};font-size:14px;">${sign}${pct.toFixed(2)}%</b></div>
+            `;
           }
         },
         series: [{
-          type: 'treemap', left: 0, right: 0, top: 0, bottom: 0, roam: false, nodeClick: false, breadcrumb: { show: false },
+          type: 'treemap',
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: 0,
+          roam: true,
+          nodeClick: false,
+          breadcrumb: { show: false },
+          label: {
+            show: true,
+            position: 'inside',
+            overflow: 'truncate',
+            formatter: function (params) {
+              const d = params.data;
+              if (!d || !Array.isArray(d.value) || typeof d.value[1] !== 'number') return '';
+              const pct = d.value[1];
+              const sign = pct > 0 ? '+' : '';
+              return `{name|${d.name}}\n{pct|${sign}${pct.toFixed(2)}%}`;
+            },
+            rich: {
+              name: {
+                fontSize: isMobile ? 10 : 12,
+                fontWeight: 'bold',
+                color: '#fff',
+                lineHeight: isMobile ? 13 : 16
+              },
+              pct: {
+                fontSize: isMobile ? 9 : 11,
+                color: '#f3f4f6',
+                lineHeight: isMobile ? 11 : 14
+              }
+            }
+          },
           levels: [
-            { itemStyle: { borderColor: '#111317', borderWidth: 1, gapWidth: 1 } },
-            { itemStyle: { borderColor: '#111317', borderWidth: 1.5, gapWidth: 0 },
-              upperLabel: { show: true, height: isMobile ? 14 : 16, color: '#9ca3af', backgroundColor: '#161920', fontSize: isMobile ? 8.5 : 10, fontWeight: 'bold', padding: [0, 3], overflow: 'truncate', formatter: '{b}' } },
-            { itemStyle: { borderColor: '#111317', borderWidth: 0.8, gapWidth: 0 }, upperLabel: { show: false } }
+            {
+              itemStyle: { borderColor: '#16181d', borderWidth: isMobile ? 1.5 : 2, gapWidth: isMobile ? 1 : 2 }
+            },
+            {
+              itemStyle: { borderColor: '#16181d', borderWidth: isMobile ? 1.5 : 2, gapWidth: 1 },
+              upperLabel: {
+                show: true,
+                height: isMobile ? 15 : 17,
+                color: '#9ca3af',
+                backgroundColor: '#1b1e26',
+                fontSize: isMobile ? 9 : 10,
+                fontWeight: 'bold',
+                padding: [0, 3],
+                overflow: 'truncate',
+                formatter: '{b}'
+              }
+            },
+            {
+              itemStyle: { borderColor: '#16181d', borderWidth: 1, gapWidth: 0 },
+              upperLabel: { show: false }
+            }
           ],
           data: treeData
         }]
-      });
-
-      if (recalcLayout) {
-        captureTileSizes();
-        renderChart(false);
-      }
+      }, resetZoom);
     }
 
-    fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
-      rawData = d;
-      document.getElementById('updated').textContent = d.updated_at;
-      renderChart(true);
-    });
+    function handleResize() {
+      myChart.resize();
+      if (rawData) renderChart(false);
+    }
 
-    document.getElementById('index-buttons').onclick = e => {
+    fetch('data.json?t=' + Date.now())
+      .then(res => {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(data => {
+        rawData = data;
+        document.getElementById('updated').textContent = `${data.updated_at}`;
+        renderChart(true);
+        setTimeout(() => myChart.resize(), 150);
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById('updated').textContent = 'データ準備中';
+      });
+
+    document.getElementById('index-buttons').addEventListener('click', (e) => {
       if (e.target.tagName !== 'BUTTON') return;
       document.querySelectorAll('#index-buttons button').forEach(b => b.classList.remove('active'));
       e.target.classList.add('active');
       currentIndex = e.target.dataset.index;
-      resetTransform();
       renderChart(true);
-    };
-    document.getElementById('period-buttons').onclick = e => {
+    });
+
+    document.getElementById('period-buttons').addEventListener('click', (e) => {
       if (e.target.tagName !== 'BUTTON') return;
       document.querySelectorAll('#period-buttons button').forEach(b => b.classList.remove('active'));
       e.target.classList.add('active');
       currentPeriod = e.target.dataset.period;
       renderChart(false);
-    };
-    window.onresize = () => { resetTransform(); myChart.resize(); renderChart(true); };
+    });
+
+    window.addEventListener('resize', handleResize);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleResize);
+    }
   </script>
 </body>
 </html>
