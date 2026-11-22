@@ -57,24 +57,31 @@
   <script>
     const wrap = document.getElementById('chart-wrap');
     const chartDom = document.getElementById('chart');
-    const myChart = echarts.init(chartDom);
+    const dpr = Math.min(Math.max(window.devicePixelRatio || 2, 2.5), 4);
+    const myChart = echarts.init(chartDom, null, { devicePixelRatio: dpr });
+
     let rawData = null, currentIndex = 'nikkei225', currentPeriod = '1D';
-    let scale = 1, tx = 0, ty = 0;
+    let scale = 1, tx = 0, ty = 0, tileSizes = {}, zoomTimer = null;
     const scaleMaxMap = { '1D': 3, '1W': 6, '1M': 10, 'YTD': 25, '1Y': 30 };
 
-    function applyTransform() {
+    function scheduleLabelRefresh() {
+      clearTimeout(zoomTimer);
+      zoomTimer = setTimeout(() => renderChart(false), 60);
+    }
+
+    function applyTransform(refreshLabels = false) {
       const W = wrap.clientWidth, H = wrap.clientHeight;
       scale = Math.max(1, Math.min(6, scale));
-      if (scale <= 1.005) {
-        scale = 1; tx = 0; ty = 0;
-      } else {
+      if (scale <= 1.005) { scale = 1; tx = 0; ty = 0; }
+      else {
         tx = Math.min(0, Math.max(W * (1 - scale), tx));
         ty = Math.min(0, Math.max(H * (1 - scale), ty));
       }
       chartDom.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`;
+      if (refreshLabels) scheduleLabelRefresh();
     }
 
-    function zoomAt(newScale, clientX, clientY) {
+    function zoomAt(newScale, clientX, clientY, refreshLabels = false) {
       const rect = wrap.getBoundingClientRect();
       const px = clientX - rect.left, py = clientY - rect.top;
       const clamped = Math.max(1, Math.min(6, newScale));
@@ -82,18 +89,16 @@
       tx = px - (px - tx) * ratio;
       ty = py - (py - ty) * ratio;
       scale = clamped;
-      applyTransform();
+      applyTransform(refreshLabels);
     }
 
-    function resetTransform() { scale = 1; tx = 0; ty = 0; applyTransform(); }
+    function resetTransform() { scale = 1; tx = 0; ty = 0; applyTransform(false); }
 
-    // タッチ操作（ピンチズーム・端ロック付きドラッグ・ダブルタップ復帰）
     let tMode = null, startX = 0, startY = 0, startTx = 0, startTy = 0, startDist = 0, startScale = 1, moved = false, lastTap = 0;
     wrap.addEventListener('touchstart', e => {
       if (e.touches.length === 1) {
         tMode = 'pan'; moved = false;
-        startX = e.touches[0].clientX; startY = e.touches[0].clientY;
-        startTx = tx; startTy = ty;
+        startX = e.touches[0].clientX; startY = e.touches[0].clientY; startTx = tx; startTy = ty;
       } else if (e.touches.length === 2) {
         tMode = 'pinch'; moved = true;
         startDist = Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY);
@@ -105,44 +110,38 @@
       if (tMode === 'pinch' && e.touches.length === 2) {
         e.preventDefault();
         const dist = Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY);
-        const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-        const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-        zoomAt(startScale * (dist / startDist), midX, midY);
+        zoomAt(startScale * (dist / startDist), (e.touches[0].clientX + e.touches[1].clientX) / 2, (e.touches[0].clientY + e.touches[1].clientY) / 2, false);
       } else if (tMode === 'pan' && e.touches.length === 1 && scale > 1) {
         const dx = e.touches[0].clientX - startX, dy = e.touches[0].clientY - startY;
         if (Math.hypot(dx, dy) > 4) moved = true;
-        if (moved) { e.preventDefault(); tx = startTx + dx; ty = startTy + dy; applyTransform(); }
+        if (moved) { e.preventDefault(); tx = startTx + dx; ty = startTy + dy; applyTransform(false); }
       }
     }, { passive: false });
 
     wrap.addEventListener('touchend', e => {
+      if (tMode === 'pinch') scheduleLabelRefresh();
       if (!moved && e.changedTouches.length === 1) {
         const now = Date.now();
         if (now - lastTap < 300) {
-          if (scale > 1) resetTransform();
-          else zoomAt(2.5, e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+          if (scale > 1) { resetTransform(); scheduleLabelRefresh(); }
+          else zoomAt(2.8, e.changedTouches[0].clientX, e.changedTouches[0].clientY, true);
           lastTap = 0;
         } else { lastTap = now; }
       }
       if (e.touches.length === 0) tMode = null;
     });
 
-    // PC操作（ホイールズーム・端ロック付きドラッグ・ダブルクリック復帰）
     let mDrag = false;
     wrap.addEventListener('wheel', e => {
       e.preventDefault();
-      zoomAt(scale * (e.deltaY < 0 ? 1.15 : 0.87), e.clientX, e.clientY);
+      zoomAt(scale * (e.deltaY < 0 ? 1.15 : 0.87), e.clientX, e.clientY, true);
     }, { passive: false });
-    wrap.addEventListener('mousedown', e => {
-      if (scale > 1) { mDrag = true; startX = e.clientX; startY = e.clientY; startTx = tx; startTy = ty; }
-    });
-    window.addEventListener('mousemove', e => {
-      if (mDrag) { tx = startTx + (e.clientX - startX); ty = startTy + (e.clientY - startY); applyTransform(); }
-    });
+    wrap.addEventListener('mousedown', e => { if (scale > 1) { mDrag = true; startX = e.clientX; startY = e.clientY; startTx = tx; startTy = ty; } });
+    window.addEventListener('mousemove', e => { if (mDrag) { tx = startTx + (e.clientX - startX); ty = startTy + (e.clientY - startY); applyTransform(false); } });
     window.addEventListener('mouseup', () => { mDrag = false; });
     wrap.addEventListener('dblclick', e => {
-      if (scale > 1) resetTransform();
-      else zoomAt(2.5, e.clientX, e.clientY);
+      if (scale > 1) { resetTransform(); scheduleLabelRefresh(); }
+      else zoomAt(2.8, e.clientX, e.clientY, true);
     });
 
     function getColor(val, maxRange) {
@@ -152,7 +151,56 @@
                      : `rgb(${Math.round(76 + r * 164)},${Math.round(44 - r * 14)},${Math.round(48 - r * 16)})`;
     }
 
-    function renderChart() {
+    function buildDynamicLabel(name, pct, code) {
+      const sz = tileSizes[code];
+      if (!sz) return { show: false };
+      const availW = sz.w * scale - 4;
+      const availH = sz.h * scale - 3;
+      if (availW < 18 || availH < 12) return { show: false };
+
+      let units = 0;
+      for (let i = 0; i < name.length; i++) units += name.charCodeAt(i) > 255 ? 1.0 : 0.6;
+      units = Math.max(units, 1.5);
+
+      if (availH < 23 || availW < 24) {
+        const visF = Math.max(6.2, Math.min(13, availH * 0.62, availW / (units + 0.3)));
+        return {
+          show: true, position: 'inside', overflow: 'truncate', formatter: name,
+          fontSize: +(visF / scale).toFixed(2), fontWeight: 'bold', color: '#fff'
+        };
+      }
+      const visN = Math.max(6.8, Math.min(16, availH * 0.32, availW / (units + 0.4)));
+      const visP = Math.max(6.0, Math.min(13, visN * 0.85, availH * 0.26, availW / 4.6));
+      const sign = pct > 0 ? '+' : '';
+      return {
+        show: true, position: 'inside', overflow: 'truncate',
+        formatter: `{n|${name}}\n{p|${sign}${pct.toFixed(2)}%}`,
+        rich: {
+          n: { fontSize: +(visN / scale).toFixed(2), fontWeight: 'bold', color: '#fff', lineHeight: +(visN * 1.18 / scale).toFixed(2) },
+          p: { fontSize: +(visP / scale).toFixed(2), color: '#f3f4f6', lineHeight: +(visP * 1.15 / scale).toFixed(2) }
+        }
+      };
+    }
+
+    function captureTileSizes() {
+      tileSizes = {};
+      try {
+        const sm = myChart.getModel().getSeriesByIndex(0);
+        const vr = sm && sm.getViewRoot();
+        const data = sm && sm.getData();
+        if (vr && data) {
+          vr.eachNode(node => {
+            const raw = data.getRawDataItem(node.dataIndex);
+            const lay = node.getLayout();
+            if (raw && Array.isArray(raw.value) && lay && lay.width > 0 && lay.height > 0) {
+              tileSizes[raw.value[3]] = { w: lay.width, h: lay.height };
+            }
+          });
+        }
+      } catch (e) {}
+    }
+
+    function renderChart(recalcLayout = true) {
       if (!rawData) return;
       const info = rawData.index_summary && rawData.index_summary[currentIndex];
       const valEl = document.getElementById('index-val'), chgEl = document.getElementById('index-chg');
@@ -165,9 +213,25 @@
       const list = rawData.indices ? rawData.indices[currentIndex] : rawData.sectors;
       if (!Array.isArray(list)) return;
       const isMobile = window.innerWidth < 600, maxR = scaleMaxMap[currentPeriod] || 3;
+
+      const treeData = list.map(sec => ({
+        name: sec.name,
+        children: sec.children.map(it => {
+          const pct = Number(it[currentPeriod] || 0);
+          return {
+            name: it.name,
+            value: [Number(it.weight || 0.1), pct, Number(it.price || 0), it.code],
+            label: buildDynamicLabel(it.name, pct, it.code),
+            itemStyle: { color: getColor(pct, maxR), borderColor: '#16181d', borderWidth: 1 }
+          };
+        })
+      }));
+
       myChart.setOption({
+        animation: false,
         tooltip: {
-          confine: true, backgroundColor: 'rgba(22,24,29,0.95)', borderColor: '#4b5563', textStyle: { color: '#fff', fontSize: 12 },
+          appendToBody: true, confine: true,
+          backgroundColor: 'rgba(22,24,29,0.95)', borderColor: '#4b5563', textStyle: { color: '#fff', fontSize: 12 },
           formatter: i => {
             const d = i.data;
             if (!d || !Array.isArray(d.value)) return i.name;
@@ -177,33 +241,26 @@
         },
         series: [{
           type: 'treemap', left: 0, right: 0, top: 0, bottom: 0, roam: false, nodeClick: false, breadcrumb: { show: false },
-          label: {
-            show: true, position: 'inside', overflow: 'truncate',
-            formatter: p => (p.data && Array.isArray(p.data.value)) ? `{n|${p.data.name}}\n{p|${p.data.value[1] > 0 ? '+' : ''}${p.data.value[1].toFixed(2)}%}` : '',
-            rich: { n: { fontSize: isMobile ? 10 : 12, fontWeight: 'bold', color: '#fff', lineHeight: isMobile ? 13 : 16 },
-                    p: { fontSize: isMobile ? 9 : 11, color: '#f3f4f6', lineHeight: isMobile ? 11 : 14 } }
-          },
           levels: [
             { itemStyle: { borderColor: '#16181d', borderWidth: 1.5, gapWidth: 1 } },
             { itemStyle: { borderColor: '#16181d', borderWidth: 1.5, gapWidth: 1 },
               upperLabel: { show: true, height: isMobile ? 15 : 17, color: '#9ca3af', backgroundColor: '#1b1e26', fontSize: isMobile ? 9 : 10, fontWeight: 'bold', padding: [0, 3], overflow: 'truncate', formatter: '{b}' } },
             { itemStyle: { borderColor: '#16181d', borderWidth: 1, gapWidth: 0 }, upperLabel: { show: false } }
           ],
-          data: list.map(sec => ({
-            name: sec.name,
-            children: sec.children.map(it => {
-              const pct = Number(it[currentPeriod] || 0);
-              return { name: it.name, value: [Number(it.weight || 0.1), pct, Number(it.price || 0), it.code], itemStyle: { color: getColor(pct, maxR), borderColor: '#16181d', borderWidth: 1 } };
-            })
-          }))
+          data: treeData
         }]
       });
+
+      if (recalcLayout) {
+        captureTileSizes();
+        renderChart(false);
+      }
     }
 
     fetch('data.json?t=' + Date.now()).then(r => r.json()).then(d => {
       rawData = d;
       document.getElementById('updated').textContent = d.updated_at;
-      renderChart();
+      renderChart(true);
     });
 
     document.getElementById('index-buttons').onclick = e => {
@@ -212,16 +269,16 @@
       e.target.classList.add('active');
       currentIndex = e.target.dataset.index;
       resetTransform();
-      renderChart();
+      renderChart(true);
     };
     document.getElementById('period-buttons').onclick = e => {
       if (e.target.tagName !== 'BUTTON') return;
       document.querySelectorAll('#period-buttons button').forEach(b => b.classList.remove('active'));
       e.target.classList.add('active');
       currentPeriod = e.target.dataset.period;
-      renderChart();
+      renderChart(false);
     };
-    window.onresize = () => { resetTransform(); myChart.resize(); renderChart(); };
+    window.onresize = () => { resetTransform(); myChart.resize(); renderChart(true); };
   </script>
 </body>
 </html>
