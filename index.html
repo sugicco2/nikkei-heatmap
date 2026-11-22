@@ -2,38 +2,46 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>日本株 ヒートマップ</title>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
       background-color: #16181d;
       color: #ffffff;
       font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    }
+    body {
       display: flex;
       flex-direction: column;
-      height: 100dvh;
-      overflow: hidden;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
     }
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 6px 10px;
+      padding: 6px 8px;
       background-color: #1e2128;
       border-bottom: 1px solid #2e323c;
-      flex-wrap: wrap;
       gap: 6px;
       flex-shrink: 0;
     }
     .left-area {
       display: flex;
       align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
+      gap: 6px;
+      min-width: 0;
     }
     .index-switch {
       display: flex;
@@ -41,13 +49,14 @@
       padding: 2px;
       border-radius: 7px;
       border: 1px solid #323744;
+      flex-shrink: 0;
     }
     .index-switch button {
       background: transparent;
       border: none;
       color: #8e96a4;
-      padding: 4px 8px;
-      font-size: 12px;
+      padding: 4px 7px;
+      font-size: 11px;
       font-weight: 700;
       border-radius: 5px;
       cursor: pointer;
@@ -58,34 +67,43 @@
     }
     .index-quote {
       display: flex;
-      align-items: baseline;
-      gap: 5px;
+      flex-direction: column;
+      line-height: 1.15;
       font-variant-numeric: tabular-nums;
+      min-width: 0;
+    }
+    .quote-top {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
     }
     #index-val {
-      font-size: 15px;
+      font-size: 13px;
       font-weight: 800;
       color: #f9fafb;
     }
     #index-chg {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
     }
     #updated {
-      font-size: 10px;
+      font-size: 9px;
       color: #6b7280;
     }
-    .controls { display: flex; gap: 3px; }
+    .controls {
+      display: flex;
+      gap: 2px;
+      flex-shrink: 0;
+    }
     .controls button {
       background: #2b303b;
       color: #c5cbd6;
       border: 1px solid #3c4250;
-      padding: 4px 8px;
-      border-radius: 6px;
+      padding: 4px 6px;
+      border-radius: 5px;
       font-size: 11px;
       font-weight: 600;
       cursor: pointer;
-      transition: 0.15s;
     }
     .controls button.active {
       background: #3b82f6;
@@ -97,6 +115,16 @@
       min-height: 0;
       width: 100%;
     }
+    @media (min-width: 600px) {
+      header { padding: 6px 12px; }
+      .index-switch button { padding: 4px 10px; font-size: 12px; }
+      .index-quote { flex-direction: row; align-items: baseline; gap: 8px; }
+      #index-val { font-size: 15px; }
+      #index-chg { font-size: 12px; }
+      #updated { font-size: 10px; }
+      .controls { gap: 4px; }
+      .controls button { padding: 4px 9px; font-size: 11px; }
+    }
   </style>
 </head>
 <body>
@@ -104,13 +132,15 @@
     <div class="left-area">
       <div class="index-switch" id="index-buttons">
         <button data-index="nikkei225" class="active">日経225</button>
-        <button data-index="topix">TOPIX 100</button>
+        <button data-index="topix">TOPIX</button>
       </div>
       <div class="index-quote">
-        <span id="index-val">--</span>
-        <span id="index-chg"></span>
+        <div class="quote-top">
+          <span id="index-val">--</span>
+          <span id="index-chg"></span>
+        </div>
+        <span id="updated">読込中...</span>
       </div>
-      <span id="updated">読込中...</span>
     </div>
     <div class="controls" id="period-buttons">
       <button data-period="1D" class="active">1D</button>
@@ -164,13 +194,14 @@
       chgEl.style.color = pct > 0 ? '#4ade80' : (pct < 0 ? '#f87171' : '#9ca3af');
     }
 
-    function renderChart() {
+    function renderChart(resetZoom = false) {
       if (!rawData) return;
       updateIndexHeader();
 
       const sectorList = rawData.indices ? rawData.indices[currentIndex] : rawData.sectors;
       if (!Array.isArray(sectorList)) return;
 
+      const isMobile = window.innerWidth < 600;
       const maxRange = scaleMaxMap[currentPeriod] || 3;
 
       const treeData = sectorList.map(sec => ({
@@ -183,7 +214,7 @@
             itemStyle: {
               color: getFinvizColor(pct, maxRange),
               borderColor: '#16181d',
-              borderWidth: 1.5
+              borderWidth: isMobile ? 1 : 1.5
             }
           };
         })
@@ -193,9 +224,10 @@
 
       myChart.setOption({
         tooltip: {
+          confine: true,
           backgroundColor: 'rgba(22, 24, 29, 0.95)',
           borderColor: '#4b5563',
-          textStyle: { color: '#fff', fontSize: 13 },
+          textStyle: { color: '#fff', fontSize: 12 },
           formatter: function (info) {
             const d = info.data;
             if (!d || !Array.isArray(d.value)) return info.name;
@@ -203,23 +235,26 @@
             const sign = pct > 0 ? '+' : '';
             const color = pct > 0 ? '#4ade80' : (pct < 0 ? '#f87171' : '#ccc');
             return `
-              <div style="font-weight:bold;font-size:14px;">${d.name} (${code})</div>
+              <div style="font-weight:bold;font-size:13px;">${d.name} (${code})</div>
               <div>現在値: <b>${price.toLocaleString()}円</b></div>
               <div>${indexLabel}: <b>${weight.toFixed(2)}%</b></div>
-              <div>騰落率 (${currentPeriod}): <b style="color:${color};font-size:15px;">${sign}${pct.toFixed(2)}%</b></div>
+              <div>騰落率 (${currentPeriod}): <b style="color:${color};font-size:14px;">${sign}${pct.toFixed(2)}%</b></div>
             `;
           }
         },
         series: [{
           type: 'treemap',
-          width: '100%',
-          height: '100%',
-          roam: false,
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: 0,
+          roam: true,
           nodeClick: false,
           breadcrumb: { show: false },
           label: {
             show: true,
             position: 'inside',
+            overflow: 'truncate',
             formatter: function (params) {
               const d = params.data;
               if (!d || !Array.isArray(d.value) || typeof d.value[1] !== 'number') return '';
@@ -228,24 +263,33 @@
               return `{name|${d.name}}\n{pct|${sign}${pct.toFixed(2)}%}`;
             },
             rich: {
-              name: { fontSize: 12, fontWeight: 'bold', color: '#fff', lineHeight: 16 },
-              pct: { fontSize: 11, color: '#f3f4f6', lineHeight: 14 }
+              name: {
+                fontSize: isMobile ? 10 : 12,
+                fontWeight: 'bold',
+                color: '#fff',
+                lineHeight: isMobile ? 13 : 16
+              },
+              pct: {
+                fontSize: isMobile ? 9 : 11,
+                color: '#f3f4f6',
+                lineHeight: isMobile ? 11 : 14
+              }
             }
           },
           levels: [
             {
-              itemStyle: { borderColor: '#16181d', borderWidth: 2, gapWidth: 2 }
+              itemStyle: { borderColor: '#16181d', borderWidth: isMobile ? 1.5 : 2, gapWidth: isMobile ? 1 : 2 }
             },
             {
-              itemStyle: { borderColor: '#16181d', borderWidth: 2, gapWidth: 1 },
+              itemStyle: { borderColor: '#16181d', borderWidth: isMobile ? 1.5 : 2, gapWidth: 1 },
               upperLabel: {
                 show: true,
-                height: 17,
+                height: isMobile ? 15 : 17,
                 color: '#9ca3af',
                 backgroundColor: '#1b1e26',
-                fontSize: 10,
+                fontSize: isMobile ? 9 : 10,
                 fontWeight: 'bold',
-                padding: [0, 4],
+                padding: [0, 3],
                 overflow: 'truncate',
                 formatter: '{b}'
               }
@@ -257,7 +301,12 @@
           ],
           data: treeData
         }]
-      });
+      }, resetZoom);
+    }
+
+    function handleResize() {
+      myChart.resize();
+      if (rawData) renderChart(false);
     }
 
     fetch('data.json?t=' + Date.now())
@@ -268,7 +317,8 @@
       .then(data => {
         rawData = data;
         document.getElementById('updated').textContent = `${data.updated_at}`;
-        renderChart();
+        renderChart(true);
+        setTimeout(() => myChart.resize(), 150);
       })
       .catch(err => {
         console.error(err);
@@ -280,7 +330,7 @@
       document.querySelectorAll('#index-buttons button').forEach(b => b.classList.remove('active'));
       e.target.classList.add('active');
       currentIndex = e.target.dataset.index;
-      renderChart();
+      renderChart(true);
     });
 
     document.getElementById('period-buttons').addEventListener('click', (e) => {
@@ -288,10 +338,13 @@
       document.querySelectorAll('#period-buttons button').forEach(b => b.classList.remove('active'));
       e.target.classList.add('active');
       currentPeriod = e.target.dataset.period;
-      renderChart();
+      renderChart(false);
     });
 
-    window.addEventListener('resize', () => myChart.resize());
+    window.addEventListener('resize', handleResize);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleResize);
+    }
   </script>
 </body>
 </html>
