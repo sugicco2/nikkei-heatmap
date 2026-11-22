@@ -9,11 +9,11 @@
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    html, body { position: fixed; inset: 0; width: 100%; height: 100%; overflow: hidden; background: #16181d; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif; }
+    html, body { position: fixed; inset: 0; width: 100%; height: 100%; overflow: hidden; background: #111317; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; }
     body { display: flex; flex-direction: column; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
-    header { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: #1e2128; border-bottom: 1px solid #2e323c; gap: 6px; flex-shrink: 0; z-index: 10; }
+    header { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: #181b20; border-bottom: 1px solid #262a33; gap: 6px; flex-shrink: 0; z-index: 10; }
     .left-area { display: flex; align-items: center; gap: 6px; min-width: 0; }
-    .index-switch { display: flex; background: #13151a; padding: 2px; border-radius: 7px; border: 1px solid #323744; flex-shrink: 0; }
+    .index-switch { display: flex; background: #101216; padding: 2px; border-radius: 7px; border: 1px solid #2d323e; flex-shrink: 0; }
     .index-switch button { background: transparent; border: none; color: #8e96a4; padding: 4px 7px; font-size: 11px; font-weight: 700; border-radius: 5px; cursor: pointer; }
     .index-switch button.active { background: #e5e7eb; color: #111827; }
     .index-quote { display: flex; flex-direction: column; line-height: 1.15; font-variant-numeric: tabular-nums; }
@@ -22,7 +22,7 @@
     #index-chg { font-size: 11px; font-weight: 700; }
     #updated { font-size: 9px; color: #6b7280; }
     .controls { display: flex; gap: 2px; flex-shrink: 0; }
-    .controls button { background: #2b303b; color: #c5cbd6; border: 1px solid #3c4250; padding: 4px 6px; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; }
+    .controls button { background: #232730; color: #c5cbd6; border: 1px solid #343946; padding: 4px 6px; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; }
     .controls button.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
     #chart-wrap { flex: 1; min-height: 0; width: 100%; position: relative; overflow: hidden; touch-action: none; }
     #chart { width: 100%; height: 100%; transform-origin: 0 0; will-change: transform; }
@@ -66,7 +66,7 @@
 
     function scheduleLabelRefresh() {
       clearTimeout(zoomTimer);
-      zoomTimer = setTimeout(() => renderChart(false), 60);
+      zoomTimer = setTimeout(() => renderChart(false), 50);
     }
 
     function applyTransform(refreshLabels = false) {
@@ -145,39 +145,88 @@
     });
 
     function getColor(val, maxRange) {
-      if (!val || isNaN(val)) return '#2d3139';
+      if (!val || isNaN(val)) return '#262a32';
       const r = Math.min(Math.abs(val) / maxRange, 1);
-      return val > 0 ? `rgb(${Math.round(42 - r * 24)},${Math.round(68 + r * 115)},${Math.round(56 + r * 24)})`
-                     : `rgb(${Math.round(76 + r * 164)},${Math.round(44 - r * 14)},${Math.round(48 - r * 16)})`;
+      return val > 0 ? `rgb(${Math.round(36 - r * 20)},${Math.round(64 + r * 116)},${Math.round(52 + r * 24)})`
+                     : `rgb(${Math.round(74 + r * 166)},${Math.round(38 - r * 12)},${Math.round(42 - r * 14)})`;
     }
 
+    function textUnits(str) {
+      let u = 0;
+      for (let i = 0; i < str.length; i++) u += str.charCodeAt(i) > 255 ? 1.0 : 0.58;
+      return Math.max(u, 1.4);
+    }
+
+    function fitText(str, maxW, maxFs, minFs) {
+      let out = '';
+      let used = 0;
+      for (let i = 0; i < str.length; i++) {
+        const w = str.charCodeAt(i) > 255 ? 1.0 : 0.58;
+        if ((used + w) * minFs > maxW && out.length > 0) break;
+        out += str[i];
+        used += w;
+      }
+      const fs = Math.max(minFs, Math.min(maxFs, maxW / Math.max(used, 1)));
+      return { text: out, fs };
+    }
+
+    // Stock Map風の完全中央揃え・三点リーダー廃止・面積比例フォント設計
     function buildDynamicLabel(name, pct, code) {
       const sz = tileSizes[code];
       if (!sz) return { show: false };
-      const availW = sz.w * scale - 4;
-      const availH = sz.h * scale - 3;
-      if (availW < 18 || availH < 12) return { show: false };
 
-      let units = 0;
-      for (let i = 0; i < name.length; i++) units += name.charCodeAt(i) > 255 ? 1.0 : 0.6;
-      units = Math.max(units, 1.5);
+      const availW = sz.w * scale - 3;
+      const availH = sz.h * scale - 2;
+      if (availW < 12 || availH < 8.5) return { show: false };
 
-      if (availH < 23 || availW < 24) {
-        const visF = Math.max(6.2, Math.min(13, availH * 0.62, availW / (units + 0.3)));
+      const units = textUnits(name);
+
+      // 小セル・横長セルは1行中央表示（企業名を最優先でくっきり表示）
+      if (availH < 21 || availW < 23) {
+        const maxFs = Math.min(14, availH * 0.68);
+        const minFs = 5.4;
+        const fitted = fitText(name, availW, maxFs, minFs);
         return {
-          show: true, position: 'inside', overflow: 'truncate', formatter: name,
-          fontSize: +(visF / scale).toFixed(2), fontWeight: 'bold', color: '#fff'
+          show: true,
+          position: 'inside',
+          align: 'center',
+          verticalAlign: 'middle',
+          formatter: fitted.text,
+          fontSize: +(fitted.fs / scale).toFixed(2),
+          fontWeight: '700',
+          color: '#ffffff'
         };
       }
-      const visN = Math.max(6.8, Math.min(16, availH * 0.32, availW / (units + 0.4)));
-      const visP = Math.max(6.0, Math.min(13, visN * 0.85, availH * 0.26, availW / 4.6));
+
+      // 中〜大セルは2行中央表示（銘柄名＋騰落率）
+      const rawMaxN = Math.min(22, availH * 0.34, availW / (Math.min(units, 5.2) + 0.1));
+      const fittedN = fitText(name, availW, Math.max(6.2, rawMaxN), 5.8);
+      const visN = fittedN.fs;
+
       const sign = pct > 0 ? '+' : '';
+      const pctStr = `${sign}${pct.toFixed(2)}%`;
+      const pctUnits = textUnits(pctStr);
+      const visP = Math.max(5.2, Math.min(15, visN * 0.78, availH * 0.25, availW / (pctUnits + 0.15)));
+
       return {
-        show: true, position: 'inside', overflow: 'truncate',
-        formatter: `{n|${name}}\n{p|${sign}${pct.toFixed(2)}%}`,
+        show: true,
+        position: 'inside',
+        align: 'center',
+        verticalAlign: 'middle',
+        formatter: `{n|${fittedN.text}}\n{p|${pctStr}}`,
         rich: {
-          n: { fontSize: +(visN / scale).toFixed(2), fontWeight: 'bold', color: '#fff', lineHeight: +(visN * 1.18 / scale).toFixed(2) },
-          p: { fontSize: +(visP / scale).toFixed(2), color: '#f3f4f6', lineHeight: +(visP * 1.15 / scale).toFixed(2) }
+          n: {
+            fontSize: +(visN / scale).toFixed(2),
+            fontWeight: '700',
+            color: '#ffffff',
+            lineHeight: +((visN * 1.15) / scale).toFixed(2)
+          },
+          p: {
+            fontSize: +(visP / scale).toFixed(2),
+            fontWeight: '500',
+            color: 'rgba(255,255,255,0.9)',
+            lineHeight: +((visP * 1.18) / scale).toFixed(2)
+          }
         }
       };
     }
@@ -222,7 +271,7 @@
             name: it.name,
             value: [Number(it.weight || 0.1), pct, Number(it.price || 0), it.code],
             label: buildDynamicLabel(it.name, pct, it.code),
-            itemStyle: { color: getColor(pct, maxR), borderColor: '#16181d', borderWidth: 1 }
+            itemStyle: { color: getColor(pct, maxR), borderColor: '#111317', borderWidth: 0.8 }
           };
         })
       }));
@@ -231,7 +280,7 @@
         animation: false,
         tooltip: {
           appendToBody: true, confine: true,
-          backgroundColor: 'rgba(22,24,29,0.95)', borderColor: '#4b5563', textStyle: { color: '#fff', fontSize: 12 },
+          backgroundColor: 'rgba(17,19,23,0.96)', borderColor: '#4b5563', textStyle: { color: '#fff', fontSize: 12 },
           formatter: i => {
             const d = i.data;
             if (!d || !Array.isArray(d.value)) return i.name;
@@ -242,10 +291,10 @@
         series: [{
           type: 'treemap', left: 0, right: 0, top: 0, bottom: 0, roam: false, nodeClick: false, breadcrumb: { show: false },
           levels: [
-            { itemStyle: { borderColor: '#16181d', borderWidth: 1.5, gapWidth: 1 } },
-            { itemStyle: { borderColor: '#16181d', borderWidth: 1.5, gapWidth: 1 },
-              upperLabel: { show: true, height: isMobile ? 15 : 17, color: '#9ca3af', backgroundColor: '#1b1e26', fontSize: isMobile ? 9 : 10, fontWeight: 'bold', padding: [0, 3], overflow: 'truncate', formatter: '{b}' } },
-            { itemStyle: { borderColor: '#16181d', borderWidth: 1, gapWidth: 0 }, upperLabel: { show: false } }
+            { itemStyle: { borderColor: '#111317', borderWidth: 1, gapWidth: 1 } },
+            { itemStyle: { borderColor: '#111317', borderWidth: 1.5, gapWidth: 0 },
+              upperLabel: { show: true, height: isMobile ? 14 : 16, color: '#9ca3af', backgroundColor: '#161920', fontSize: isMobile ? 8.5 : 10, fontWeight: 'bold', padding: [0, 3], overflow: 'truncate', formatter: '{b}' } },
+            { itemStyle: { borderColor: '#111317', borderWidth: 0.8, gapWidth: 0 }, upperLabel: { show: false } }
           ],
           data: treeData
         }]
